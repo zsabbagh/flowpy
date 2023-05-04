@@ -2,6 +2,7 @@ import ast
 import tokenize
 import re
 import sys
+from copy import deepcopy
 from argparse import ArgumentParser
 
 parser = ArgumentParser()
@@ -33,34 +34,59 @@ class State:
         def add(self, labels):
             self.labels.update(labels)
 
-        def check(self, value):
+        def applies_to(self, value):
             return bool(re.search(self.regex, value))
 
-    def __init__(self):
+    def __init__(self, parent_state=None):
+        """
+            If parent_state is provided,
+            PC is inherited and get_labels becomes 
+            (potentially) recursive, if no matches exists
+            in the current state.
+        """
         self.__rules = {}
         self.__pc = set()
+        self.__parent = parent_state
+        if parent_state is not None:
+            self.__pc = parent_state.__pc
     
     def __str__(self):
         res  = ["State: \n", f"\t<PC>: {self.__pc}\n\t"]
-        for (regex, check) in self.__rules.items():
-            res.append(f"{regex}: {check.labels}\n\t")
+        for (regex, rule) in self.__rules.items():
+            res.append(f"{regex}: {rule.labels}\n\t")
         return ''.join(res)
     
-    def __add_rule(self, regex, labels):
+    def update_pc(self, labels):
         """
-            Add labels to the restr (regex string) state
+            Update PC and adds all missing labels
         """
-        if regex not in self.__rules:
-            self.__rules[regex] = self.__Rule(regex, labels)
-        else:
-            self.__rules[regex].add(labels)
+        self.__pc.update(labels)
 
+    def set_pc(self, labels: set):
+        """
+            Sets PC to labels, i.e. overwrite with labels
+        """
+        self.__pc = labels
+    
+    def get_pc(self: set):
+        """
+            Gets the PC
+        """
+        return self.__pc
+    
     def add_rules(self, comment: str) -> None:
         """
-            Looks on labels after colon
-            Assumes comment = #fp ...
+            Input string as FlowPy-comment stripped,
+            i.e. if #fp is prefix, remove this before calling.
+            
+            Grammar matching:
+            label   := [^\s,]+
+            labels  := {} | label, labels
+            rule    := (PYTHON_VAR_CHARS|*)+: label [, labels]
+            rules   := {} | rule. rules
+            
         """
-        rules = list(filter(bool, comment[3:].strip().split('.')))
+        rules = list(filter(bool, comment.strip().split('.')))
         for rule in rules:
             try:
                 first, second = tuple(re.split(r':', rule))
@@ -69,13 +95,24 @@ class State:
             regex = re.findall(r'[a-zA-Z0-9_\*]+', first)
             labels = list(map(lambda x : x.strip(), second.split(',')))
             if regex and labels:
-                self.__add_rule(regex[0], labels)
+                if regex not in self.__rules:
+                    self.__rules[regex] = self.__Rule(regex, labels)
+                else:
+                    self.__rules[regex].add(labels)
     
-    def get_labels(self, variable):
+    def get_labels(self, variable: str) -> set:
+        """
+            Input variable name to check.
+            Returns labels as a set.
+            Checks parent state if it exists.
+        """
         result = set()
         for (_, rule) in self.__rules.items():
-            if rule.check(variable):
+            if rule.applies_to(variable):
                 result.update(rule.labels)
+        # Recursively check labels if none is find
+        if len(result)==0 and type(self.__parent)==State:
+            result = self.__parent.get_labels(result)
         return result
 
 if __name__=='__main__':
