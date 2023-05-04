@@ -67,7 +67,7 @@ class State:
             except ValueError as e:
                 continue
             regex = re.findall(r'[a-zA-Z0-9_\*]+', first)
-            labels = re.findall(r'[a-zA-Z0-9_]+', second)
+            labels = list(map(lambda x : x.strip(), second.split(',')))
             if regex and labels:
                 self.__add_rule(regex[0], labels)
     
@@ -80,7 +80,7 @@ class State:
 
 if __name__=='__main__':
     state = State()
-    state.add_rules('#fp p*: high. ap*: medium, high.')
+    state.add_rules('#fp p*: high. ap*: __-$`.')
     print(state)
     print(state.get_labels('apa'))
     print(state.get_labels('pa'))
