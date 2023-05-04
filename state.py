@@ -90,10 +90,10 @@ class State:
         for rule in rules:
             try:
                 first, second = tuple(re.split(r':', rule))
-            except ValueError as e:
+                regex = re.findall(r'[a-zA-Z0-9_\*]+', first)[0]
+                labels = list(map(lambda x : x.strip(), second.split(',')))
+            except (ValueError, IndexError) as e:
                 continue
-            regex = re.findall(r'[a-zA-Z0-9_\*]+', first)
-            labels = list(map(lambda x : x.strip(), second.split(',')))
             if regex and labels:
                 if regex not in self.__rules:
                     self.__rules[regex] = self.__Rule(regex, labels)
