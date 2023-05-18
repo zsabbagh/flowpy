@@ -8,7 +8,6 @@ from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument('-f', '--file', help='File to check')
 parser.add_argument('-d', '--debug', action='store_true', help='Debug messages')
-args = parser.parse_args()
 
 FLOWPY_PREFIX = "fp"
 functions_to_check = []
@@ -30,7 +29,7 @@ class State:
         def __init__(self, restr, labels):
             self.regex = '^' + restr.replace('*', '.*') + '$'
             self.labels = set(labels)
-        
+
         def add(self, labels):
             self.labels.update(labels)
 
@@ -40,7 +39,7 @@ class State:
     def __init__(self, parent_state=None):
         """
             If parent_state is provided,
-            PC is inherited and get_labels becomes 
+            PC is inherited and get_labels becomes
             (potentially) recursive, if no matches exists
             in the current state.
         """
@@ -49,13 +48,13 @@ class State:
         self.__parent = parent_state
         if parent_state is not None:
             self.__pc = parent_state.__pc
-    
+
     def __str__(self):
         res  = ["State: \n", f"\t<PC>: {self.__pc}\n\t"]
         for (regex, rule) in self.__rules.items():
             res.append(f"{regex}: {rule.labels}\n\t")
         return ''.join(res)
-    
+
     def update_pc(self, labels):
         """
             Update PC and adds all missing labels
@@ -67,24 +66,24 @@ class State:
             Sets PC to labels, i.e. overwrite with labels
         """
         self.__pc = labels
-    
-    def get_pc(self: set):
+
+    def get_pc(self):
         """
             Gets the PC
         """
         return self.__pc
-    
+
     def add_rules(self, comment: str) -> None:
         """
             Input string as FlowPy-comment stripped,
             i.e. if #fp is prefix, remove this before calling.
-            
+
             Grammar matching:
             label   := [^\s,]+
             labels  := {} | label, labels
             rule    := (PYTHON_VAR_CHARS|*)+: label [, labels]
             rules   := {} | rule. rules
-            
+
         """
         rules = list(filter(bool, comment.strip().split('.')))
         for rule in rules:
@@ -92,14 +91,14 @@ class State:
                 first, second = tuple(re.split(r':', rule))
                 regex = re.findall(r'[a-zA-Z0-9_\*]+', first)[0]
                 labels = list(map(lambda x : x.strip(), second.split(',')))
-            except (ValueError, IndexError) as e:
+            except (ValueError, IndexError) as _:
                 continue
             if regex and labels:
                 if regex not in self.__rules:
                     self.__rules[regex] = self.__Rule(regex, labels)
                 else:
                     self.__rules[regex].add(labels)
-    
+
     def get_labels(self, variable: str) -> set:
         """
             Input variable name to check.
@@ -116,6 +115,9 @@ class State:
         return result
 
 if __name__=='__main__':
+    # This should be here and not global, since doing it in the global scope means that
+    # importing classes will import the ArgumentParser options too.
+    args = parser.parse_args()
     state = State()
     state.add_rules('#fp p*: high. ap*: __-$`.')
     print(state)
