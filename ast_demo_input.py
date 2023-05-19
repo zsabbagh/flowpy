@@ -1,4 +1,4 @@
-#fp high: my_label, low: other_label
+#fp high: my_label. low: other_label
 def main():
     high = 1
     low = 0
