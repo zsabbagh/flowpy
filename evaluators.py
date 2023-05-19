@@ -108,11 +108,9 @@ class IfEvaluator(Evaluator):
 
         # TODO: Check that everything in the body is OK according to PC
         # this includes `orelse` tokens.
-        for item in self.node.body:
-            print(item)
-            evaluator = Evaluator.from_AST(item, self.state)
-            print(evaluator)
-            # Will fail when we have non-supported expressions
+        # `elif`s are represented as an `if` inside the `orelse` list.
+        for nd in self.node.body + self.node.orelse:
+            evaluator = Evaluator.from_AST(nd, self.state)
             evaluator.evaluate()
 
         self.state.set_pc(pc)
