@@ -32,7 +32,7 @@ with open(args.file, "rb") as f:
         if token.type == tokenize.COMMENT:
             if token.string.startswith(f"#{FLOWPY_PREFIX}"):
                 expecting_def = True
-                state.add_rules(token.string)
+                state.add_rules(token.string.removeprefix(f"#{FLOWPY_PREFIX}")) # Strip the prefix
         # Run only if we're supposed to evaluate the next function and are out of comments.
         elif expecting_def:
             if token.string == "def":
