@@ -18,6 +18,10 @@ class Evaluator(ABC):
         else:
             return UnimplementedEvaluator(node, state)
 
+    @staticmethod
+    def warn(msg: str):
+        print("\033[33;1mWARNING:\033[0m", f"\033[;1m{msg}\033[0m")
+
     """
         Evaluate the contents of a node.
         PC must be saved and reset at beginning and end respectively.
@@ -136,19 +140,30 @@ class AssignEvaluator(Evaluator):
 
                     # If the assingned value has any labels that the target doesn't, warn.
                     if not value_labels.issubset(target_labels):
-                        print(
-                            f"WARNING: Assigning {self.node.value.id} to {tgt.id}, where {tgt.id} has labels {target_labels} and {self.node.value.id} has labels {value_labels}."
+                        Evaluator.warn(
+                            f"Assigning {self.node.value.id} to {tgt.id}, where {tgt.id} has labels {target_labels} and {self.node.value.id} has labels {value_labels}."
                         )
                         return False
                     # If target is missing any of the labels in PC, warn.
                     if not self.state.get_pc().issubset(target_labels):
-                        print(
-                            f"WARNING: Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}"
+                        Evaluator.warn(
+                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}"
                         )
                 else:
                     print(
                         f"Assigning to node {type(self.node.value)} not yet supported"
                     )
+
+        # TODO: This is very similar to the ast.Name case. Perhaps do something to avoid code duplication?
+        # Only real difference here is that we don't care about the value's labels (as it's a constant and doesn't have any).
+        elif isinstance(self.node.value, ast.Constant):
+            for tgt in self.node.targets:
+                if isinstance(tgt, ast.Name):
+                    target_labels = self.state.get_labels(tgt.id)
+                    if not self.state.get_pc().issubset(target_labels):
+                        Evaluator.warn(
+                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}"
+                        )
 
         else:
             print(f"Assigning node {type(self.node.value)} not yet supported")

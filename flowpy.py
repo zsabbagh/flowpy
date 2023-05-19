@@ -53,6 +53,6 @@ with open(args.file) as src:
     for nd in ast.walk(prog):
         if isinstance(nd, ast.FunctionDef) and nd.name in functions_to_check.keys():
             # Evaluate the function
-            print(f"Evaluating function {nd.name} as specified by comments")
+            print("\033[;1m" + f"> Evaluating function {nd.name} as specified by comments" + "\033[0m")
             evaluator = FunctionEvaluator(nd, functions_to_check[nd.name])
             evaluator.evaluate()
