@@ -84,6 +84,8 @@ class State:
             rule    := (PYTHON_VAR_CHARS|*)+: label [, labels]
             rules   := {} | rule. rules
 
+            Example: a: my_label, my_label_2. b: other_label
+
         """
         rules = list(filter(bool, comment.strip().split('.')))
         for rule in rules:
@@ -91,13 +93,15 @@ class State:
                 first, second = tuple(re.split(r':', rule))
                 regex = re.findall(r'[a-zA-Z0-9_\*]+', first)[0]
                 labels = list(map(lambda x : x.strip(), second.split(',')))
-            except (ValueError, IndexError) as _:
+                if regex and labels:
+                    if regex not in self.__rules:
+                        self.__rules[regex] = self.__Rule(regex, labels)
+                    else:
+                        self.__rules[regex].add(labels)
+                print(self.__rules)
+            except (ValueError, IndexError) as e:
+                print(e)
                 continue
-            if regex and labels:
-                if regex not in self.__rules:
-                    self.__rules[regex] = self.__Rule(regex, labels)
-                else:
-                    self.__rules[regex].add(labels)
 
     def get_labels(self, variable: str) -> set:
         """
