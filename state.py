@@ -101,7 +101,7 @@ class State:
                         self.__rules[regex] = self.__Rule(regex, labels)
                     else:
                         self.__rules[regex].add(labels)
-                print(self.__rules)
+
             except (ValueError, IndexError) as e:
                 print(e)
                 continue

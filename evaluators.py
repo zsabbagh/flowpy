@@ -16,8 +16,7 @@ class Evaluator(ABC):
         elif isinstance(node, ast.Assign):
             return AssignEvaluator(node, state)
         else:
-            print(f"Evaluator not implemented for {type(node)}")
-            return None
+            return UnimplementedEvaluator(node, state)
 
     """
         Evaluate the contents of a node.
@@ -28,6 +27,19 @@ class Evaluator(ABC):
     def evaluate(self) -> bool:
         expression_OK = True
         return expression_OK
+
+
+class UnimplementedEvaluator(Evaluator):
+    node: ast.AST
+    state: State
+
+    def __init__(self, node: ast.AST, state: State):
+        self.node = node
+        self.state = state
+
+    def evaluate(self) -> bool:
+        print(f"Evaluator not implemented for node {type(self.node)}.")
+        return True
 
 
 """
@@ -107,7 +119,7 @@ class IfEvaluator(Evaluator):
         return True
 
 
-class AssignEvaluator:
+class AssignEvaluator(Evaluator):
     node: ast.Assign
     state: State
 
@@ -119,13 +131,11 @@ class AssignEvaluator:
         # Only support assignment of simple variables so far
         # (no lists, dicts etc. on RHS)
         if isinstance(self.node.value, ast.Name):
-            print(ast.dump(self.node, indent=2))
             value_labels = self.state.get_labels(self.node.value.id)
-            print(f"Value labels for {self.node.value.id}: {value_labels}")
             for tgt in self.node.targets:
                 if isinstance(tgt, ast.Name):
                     target_labels = self.state.get_labels(tgt.id)
-                    print(f"Target labels: {target_labels}")
+
                     # If the assingned value has any labels that the target doesn't, warn.
                     if not value_labels.issubset(target_labels):
                         print(
@@ -138,10 +148,12 @@ class AssignEvaluator:
                             f"WARNING: Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}"
                         )
                 else:
-                    print(f"Assigning an {type(self.node.value)} not yet supported")
+                    print(
+                        f"Assigning to node {type(self.node.value)} not yet supported"
+                    )
 
         else:
-            print(f"Assigning an {type(self.node.value)} not yet supported")
+            print(f"Assigning node {type(self.node.value)} not yet supported")
 
         # No "invalid" assignments have occurred
         return True
