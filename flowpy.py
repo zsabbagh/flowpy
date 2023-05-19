@@ -7,8 +7,8 @@ from argparse import ArgumentParser
 from evaluators import *
 
 parser = ArgumentParser()
-parser.add_argument('file', help='File to check')
-parser.add_argument('-d', '--debug', action='store_true', help='Debug messages')
+parser.add_argument("file", help="File to check")
+parser.add_argument("-d", "--debug", action="store_true", help="Debug messages")
 args = parser.parse_args()
 
 FLOWPY_PREFIX = "fp"
@@ -32,7 +32,9 @@ with open(args.file, "rb") as f:
         if token.type == tokenize.COMMENT:
             if token.string.startswith(f"#{FLOWPY_PREFIX}"):
                 expecting_def = True
-                state.add_rules(token.string.removeprefix(f"#{FLOWPY_PREFIX}")) # Strip the prefix
+                state.add_rules(
+                    token.string.removeprefix(f"#{FLOWPY_PREFIX}")
+                )  # Strip the prefix
         # Run only if we're supposed to evaluate the next function and are out of comments.
         elif expecting_def:
             if token.string == "def":
