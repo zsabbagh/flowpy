@@ -1,17 +1,17 @@
-"""
-    Abstract class for all evaluators to inherit from.
-"""
 from abc import ABC, abstractmethod
 import ast
 import sys
 from state import State
 
+
 class Evaluator(ABC):
     """
-        Abstract class for all evaluators to inherit from.
+    Abstract class for all evaluators to inherit from.
     """
+
     node: ast.AST
     state: State
+
     # Superclass for all evaluators
     def __init__(self, node, state):
         self.node = node
@@ -20,36 +20,38 @@ class Evaluator(ABC):
     @staticmethod
     def from_AST(node: ast.AST, state):
         """
-            Depending on type of node, return the appropriate subclass
+        Depending on type of node, return the appropriate subclass
         """
-        if isinstance(node, ast.If):
-            return IfEvaluator(node, state)
-        elif isinstance(node, ast.Assign):
-            return AssignEvaluator(node, state)
-        else:
-            return UnimplementedEvaluator(node, state)
+        match node.__class__:
+            case ast.If:
+                return IfEvaluator(node, state)
+            case ast.Assign:
+                return AssignEvaluator(node, state)
+            case ast.Expr:
+                return ExprEvaluator(node, state)
+            case _:
+                return UnimplementedEvaluator(node, state)
 
     @staticmethod
     # Print a warning message
     def warn(msg: str):
         """
-            Print a warning message
+        Print a warning message
         """
         print("\033[33;1mWARNING:\033[0m", f"\033[;1m{msg}\033[0m", file=sys.stderr)
-
 
     @abstractmethod
     def evaluate(self) -> bool:
         """
-            Evaluate the contents of a node.
-            PC must be saved and reset at beginning and end respectively.
+        Evaluate the contents of a node.
+        PC must be saved and reset at beginning and end respectively.
         """
         expression_OK = True
         return expression_OK
 
 
 class UnimplementedEvaluator(Evaluator):
-    """ 
+    """
     The default evaluator to return if one is not implemented
     for the node in question.
     This will also have an `evaluate` method, meaning that we won't get
@@ -66,10 +68,12 @@ class UnimplementedEvaluator(Evaluator):
         print(f"Evaluator not implemented for node {type(self.node)}.", file=sys.stderr)
         return True
 
+
 class FunctionEvaluator(Evaluator):
     """
-        Evaluate a function.
+    Evaluate a function.
     """
+
     node: ast.FunctionDef
     state: State
 
@@ -185,3 +189,27 @@ class AssignEvaluator(Evaluator):
 
         # No "invalid" assignments have occurred
         return True
+
+
+class ExprEvaluator(Evaluator):
+    """
+    'When an expression, such as a function call, appears as a statement by
+    itself with its return value not used or stored, it is wrapped in this
+    container [Expr].' - https://docs.python.org/3/library/ast.html
+
+    In other words, an Expr holds an expression whose value is unused. The most
+    likely thing in a naïve program will probably be `Call`s to functions with
+    side effects, such as `print()`.
+    """
+
+    node: ast.Expr
+    state: State
+
+    def __init__(self, node: ast.Expr, state: State):
+        super().__init__(node, state)
+
+    # Since an expression acts as a wrapper, we just defer
+    # IFC to the wrapped node.
+    def evaluate(self) -> bool:
+        evaluator = Evaluator.from_AST(self.node.value, self.state)
+        return evaluator.evaluate()
