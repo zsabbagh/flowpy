@@ -36,11 +36,11 @@ class Evaluator(ABC):
 
     @staticmethod
     # Print a warning message
-    def warn(msg: str):
+    def warn(msg: str, line: int):
         """
         Print a warning message
         """
-        print("\033[33;1mWARNING:\033[0m", f"\033[;1m{msg}\033[0m", file=sys.stderr)
+        print("\033[33;1m" + f"WARNING (line {line}):" + "\033[0m", f"\033[;1m{msg}\033[0m", file=sys.stderr)
 
     @abstractmethod
     def evaluate(self) -> bool:
@@ -162,13 +162,15 @@ class AssignEvaluator(Evaluator):
                     # If the assingned value has any labels that the target doesn't, warn.
                     if not value_labels.issubset(target_labels):
                         Evaluator.warn(
-                            f"Assigning {self.node.value.id} to {tgt.id}, where {tgt.id} has labels {target_labels} and {self.node.value.id} has labels {value_labels}."
+                            f"Assigning {self.node.value.id} to {tgt.id}, where {tgt.id} has labels {target_labels} and {self.node.value.id} has labels {value_labels}.",
+                            tgt.lineno,
                         )
                         return False
                     # If target is missing any of the labels in PC, warn.
                     if not self.state.get_pc().issubset(target_labels):
                         Evaluator.warn(
-                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}"
+                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}",
+                            tgt.lineno,
                         )
                 else:
                     print(
@@ -183,7 +185,8 @@ class AssignEvaluator(Evaluator):
                     target_labels = self.state.get_labels(tgt.id)
                     if not self.state.get_pc().issubset(target_labels):
                         Evaluator.warn(
-                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}"
+                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}",
+                            tgt.lineno,
                         )
 
         else:
@@ -238,7 +241,8 @@ class CallEvaluator(Evaluator):
         if self.state.get_pc():  # PC empty -> no restrictions
             if isinstance(self.node.func, ast.Name):
                 Evaluator.warn(
-                    f"Calling function {self.node.func.id} with non-empty PC ({self.state.get_pc()}). Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage."
+                    f"Calling function {self.node.func.id} with non-empty PC ({self.state.get_pc()}). Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage.",
+                    self.node.func.lineno,
                 )
             else:
                 print(f"Call not implemented for type {self.node.func}")
@@ -251,7 +255,8 @@ class CallEvaluator(Evaluator):
             elif isinstance(arg, ast.Name):
                 if isinstance(self.node.func, ast.Name):
                     Evaluator.warn(
-                        f"Calling function {self.node.func.id} with {arg.id} as an argument, which has labels {self.state.get_labels(arg.id)}. Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage."
+                        f"Calling function {self.node.func.id} with {arg.id} as an argument, which has labels {self.state.get_labels(arg.id)}. Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage.",
+                        self.node.func.lineno,
                     )
             else:
                 print(f"Call not implemented for type {self.node.func}")
