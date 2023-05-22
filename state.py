@@ -27,7 +27,7 @@ class State:
 
         def applies_to(self, value):
             return bool(re.search(self.regex, value))
-
+    
     def __init__(self, parent_state=None):
         """
         If parent_state is provided,
@@ -83,7 +83,7 @@ class State:
             try:
                 first, second = tuple(re.split(r":", rule))
                 regex = re.findall(r"[a-zA-Z0-9_\*]+", first)[0]
-                labels = list(map(lambda x: x.strip(), second.split(",")))
+                labels = list(filter(bool, (map(lambda x: x.strip(), second.split(",")))))
                 if regex and labels:
                     if regex not in self.__rules:
                         self.__rules[regex] = self.__Rule(regex, labels)
@@ -94,17 +94,20 @@ class State:
                 print(e)
                 continue
 
-    def get_labels(self, variable: str) -> set:
+    def get_labels(self, variable: str, depth: int = -1) -> set:
         """
         Input variable name to check.
         Returns labels as a set.
         Checks parent state if it exists.
+
+        variable: The variable to check
+        depth: How many levels to check (default: -1, i.e. infinite, 0: no parent)
         """
         result = set()
         for _, rule in self.__rules.items():
             if rule.applies_to(variable):
                 result.update(rule.labels)
         # Recursively check labels if none is find
-        if len(result) == 0 and type(self.__parent) == State:
-            result = self.__parent.get_labels(result)
+        if len(result) == 0 and type(self.__parent) == State and depth != 0:
+            result = self.__parent.get_labels(result, depth=depth-1)
         return result
