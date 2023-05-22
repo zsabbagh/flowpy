@@ -1,4 +1,4 @@
-#fp foo: highlable. bar: lowlabel
+#fp foo: highlabel. bar: lowlabel
 def main():
     foo = 1
     bar = 0

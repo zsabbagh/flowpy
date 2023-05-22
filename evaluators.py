@@ -29,6 +29,8 @@ class Evaluator(ABC):
                 return AssignEvaluator(node, state)
             case ast.Expr:
                 return ExprEvaluator(node, state)
+            case ast.Call:
+                return CallEvaluator(node, state)
             case _:
                 return UnimplementedEvaluator(node, state)
 
@@ -213,3 +215,47 @@ class ExprEvaluator(Evaluator):
     def evaluate(self) -> bool:
         evaluator = Evaluator.from_AST(self.node.value, self.state)
         return evaluator.evaluate()
+
+
+class CallEvaluator(Evaluator):
+    """
+    Evaluate a function call.
+
+    In the future, we could perhaps follow these flows and check the called
+    function as well, but for now, just warn about potential issues.
+
+    Also, this currently only considers calling named functions (i.e. nodes
+    of type ast.Name). Any others will print an error message.
+    """
+
+    node: ast.Call
+    state: State
+
+    def __init__(self, node: ast.Call, state: State):
+        super().__init__(node, state)
+
+    def evaluate(self) -> bool:
+        if self.state.get_pc():  # PC empty -> no restrictions
+            if isinstance(self.node.func, ast.Name):
+                Evaluator.warn(
+                    f"Calling function {self.node.func.id} with non-empty PC ({self.state.get_pc()}). Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage."
+                )
+            else:
+                print(f"Call not implemented for type {self.node.func}")
+
+            return False
+
+        for arg in self.node.args:
+            if isinstance(arg, ast.Constant):
+                continue
+            elif isinstance(arg, ast.Name):
+                if isinstance(self.node.func, ast.Name):
+                    Evaluator.warn(
+                        f"Calling function {self.node.func.id} with {arg.id} as an argument, which has labels {self.state.get_labels(arg.id)}. Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage."
+                    )
+            else:
+                print(f"Call not implemented for type {self.node.func}")
+
+            return False
+
+        return True
