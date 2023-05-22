@@ -1,6 +1,6 @@
 import ast
 import tokenize
-import re
+import sys
 from typing import Dict
 from state import State
 from argparse import ArgumentParser
@@ -14,6 +14,17 @@ args = parser.parse_args()
 FLOWPY_PREFIX = "fp"
 # Dict of function_name -> state
 functions_to_check: Dict[str, State] = {}
+
+class FlowPy:
+    """
+        Wrapper class for the entire program
+    """
+    def __init__(self, sink=sys.stdin):
+        self.sink = None
+        pass
+
+    def run(self):
+        pass
 
 # Parse comments
 with open(args.file, "rb") as f:
@@ -56,3 +67,10 @@ with open(args.file) as src:
             print("\033[;1m" + f"> Evaluating function {nd.name} as specified by comments" + "\033[0m")
             evaluator = FunctionEvaluator(nd, functions_to_check[nd.name])
             evaluator.evaluate()
+
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    pass

@@ -1,13 +1,13 @@
-#fp high: my_label. low: other_label
+#fp foo: highlable. bar: lowlabel
 def main():
-    high = 1
-    low = 0
+    foo = 1
+    bar = 0
     print("Hello world")
-    if high:
-        low = high
+    if foo:
+        bar = foo
         # print("LEAKED!!!!")
-    elif low == 0:
-        high = low
+    elif bar == 0:
+        foo = bar
         # print("sdofnrwö")
     else:
         print("testing how this looks in the ast")

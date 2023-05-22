@@ -1,16 +1,27 @@
-from abc import ABC, abstractmethod
-import ast
-from state import State
-
 """
     Abstract class for all evaluators to inherit from.
 """
-
+from abc import ABC, abstractmethod
+import ast
+import sys
+from state import State
 
 class Evaluator(ABC):
+    """
+        Abstract class for all evaluators to inherit from.
+    """
+    node: ast.AST
+    state: State
+    # Superclass for all evaluators
+    def __init__(self, node, state):
+        self.node = node
+        self.state = state
+
     @staticmethod
-    # depending on type of node, return the appropriate subclass
     def from_AST(node: ast.AST, state):
+        """
+            Depending on type of node, return the appropriate subclass
+        """
         if isinstance(node, ast.If):
             return IfEvaluator(node, state)
         elif isinstance(node, ast.Assign):
@@ -19,45 +30,51 @@ class Evaluator(ABC):
             return UnimplementedEvaluator(node, state)
 
     @staticmethod
+    # Print a warning message
     def warn(msg: str):
-        print("\033[33;1mWARNING:\033[0m", f"\033[;1m{msg}\033[0m")
+        """
+            Print a warning message
+        """
+        print("\033[33;1mWARNING:\033[0m", f"\033[;1m{msg}\033[0m", file=sys.stderr)
 
-    """
-        Evaluate the contents of a node.
-        PC must be saved and reset at beginning and end respectively.
-    """
 
     @abstractmethod
     def evaluate(self) -> bool:
+        """
+            Evaluate the contents of a node.
+            PC must be saved and reset at beginning and end respectively.
+        """
         expression_OK = True
         return expression_OK
 
 
 class UnimplementedEvaluator(Evaluator):
+    """ 
+    The default evaluator to return if one is not implemented
+    for the node in question.
+    This will also have an `evaluate` method, meaning that we won't get
+    AttributeErrors from trying to check an unimplemented node.
+    """
+
     node: ast.AST
     state: State
 
     def __init__(self, node: ast.AST, state: State):
-        self.node = node
-        self.state = state
+        super().__init__(node, state)
 
     def evaluate(self) -> bool:
-        print(f"Evaluator not implemented for node {type(self.node)}.")
+        print(f"Evaluator not implemented for node {type(self.node)}.", file=sys.stderr)
         return True
 
-
-"""
-    Evaluate a function.
-"""
-
-
 class FunctionEvaluator(Evaluator):
+    """
+        Evaluate a function.
+    """
     node: ast.FunctionDef
     state: State
 
     def __init__(self, node: ast.FunctionDef, state: State):
-        self.node = node
-        self.state = state
+        super().__init__(node, state)
 
     def evaluate(self) -> bool:
         pc = self.state.get_pc()
@@ -81,8 +98,7 @@ class IfEvaluator(Evaluator):
     state: State
 
     def __init__(self, node: ast.If, state: State):
-        self.node = node
-        self.state = state
+        super().__init__(node, state)
 
     # If statements have a "test" (the conditional) which holds one node.
     # By looking at the Python grammar, the type this node may have is not that
@@ -126,8 +142,7 @@ class AssignEvaluator(Evaluator):
     state: State
 
     def __init__(self, node: ast.Assign, state: State):
-        self.node = node
-        self.state = state
+        super().__init__(node, state)
 
     def evaluate(self) -> bool:
         # Only support assignment of simple variables so far
