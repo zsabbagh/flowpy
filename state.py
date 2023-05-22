@@ -2,18 +2,7 @@
     This file contains the State class, which is used to keep track of the
     current state of variables.
 """
-import ast
-import tokenize
 import re
-import sys
-from flowpy import FLOWPY_PREFIX
-from copy import deepcopy
-from argparse import ArgumentParser
-
-parser = ArgumentParser()
-parser.add_argument("-f", "--file", help="File to check")
-parser.add_argument("-d", "--debug", action="store_true", help="Debug messages")
-functions_to_check = []
 
 
 class State:
@@ -78,7 +67,7 @@ class State:
 
     def add_rules(self, comment: str) -> None:
         """
-        Input string as FlowPy-comment stripped or not
+        Input string as FlowPy-comment stripped
 
         Grammar matching:
         label   := [^\s,]+
@@ -89,9 +78,6 @@ class State:
         Example: a: my_label, my_label_2. b: other_label
 
         """
-        if comment.startswith(f"#{FLOWPY_PREFIX}"):
-            comment = comment[len(f"#{FLOWPY_PREFIX}") :]
-        comment.strip()
         rules = list(filter(bool, comment.strip().split(".")))
         for rule in rules:
             try:
@@ -122,14 +108,3 @@ class State:
         if len(result) == 0 and type(self.__parent) == State:
             result = self.__parent.get_labels(result)
         return result
-
-
-if __name__ == "__main__":
-    # This should be here and not global, since doing it in the global scope means that
-    # importing classes will import the ArgumentParser options too.
-    args = parser.parse_args()
-    state = State()
-    state.add_rules(f"#{FLOWPY_PREFIX} p*: high. ap*: __-$`.")
-    print(state)
-    print(state.get_labels("apa"))
-    print(state.get_labels("pa"))
