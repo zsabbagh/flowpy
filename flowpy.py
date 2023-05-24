@@ -11,15 +11,15 @@ from argparse import ArgumentParser
 from evaluators import *
 
 parser = ArgumentParser(prog="flowpy", description="""
-          ___                  ___         ___         ___          
-     /\__\                /\  \       /\  \       /\  \         
-    /:/ _/_              /::\  \     _\:\  \     /::\  \  ___   
-   /:/ /\__\            /:/\:\  \   /\ \:\  \   /:/\:\__\/|  |  
-  /:/ /:/  ___     ___ /:/  \:\  \ _\:\ \:\  \ /:/ /:/  |:|  |  
- /:/_/:/  /\  \   /\__/:/__/ \:\__/\ \:\ \:\__/:/_/:/  /|:|  |  
- \:\/:/  /\:\  \ /:/  \:\  \ /:/  \:\ \:\/:/  \:\/:/  __|:|__|  
-  \::/__/  \:\  /:/  / \:\  /:/  / \:\ \::/  / \::/__/::::\  \  
-   \:\  \   \:\/:/  /   \:\/:/  /   \:\/:/  /   \:\  ~~~~\:\  \ 
+          ___                  ___         ___         ___
+     /\__\                /\  \       /\  \       /\  \
+    /:/ _/_              /::\  \     _\:\  \     /::\  \  ___
+   /:/ /\__\            /:/\:\  \   /\ \:\  \   /:/\:\__\/|  |
+  /:/ /:/  ___     ___ /:/  \:\  \ _\:\ \:\  \ /:/ /:/  |:|  |
+ /:/_/:/  /\  \   /\__/:/__/ \:\__/\ \:\ \:\__/:/_/:/  /|:|  |
+ \:\/:/  /\:\  \ /:/  \:\  \ /:/  \:\ \:\/:/  \:\/:/  __|:|__|
+  \::/__/  \:\  /:/  / \:\  /:/  / \:\ \::/  / \::/__/::::\  \
+   \:\  \   \:\/:/  /   \:\/:/  /   \:\/:/  /   \:\  ~~~~\:\  \
     \:\__\   \::/  /     \::/  /     \::/  /     \:\__\   \:\__\
      \/__/    \/__/       \/__/       \/__/       \/__/    \/__/
 """)
@@ -48,9 +48,9 @@ class FlowPy:
         """
 
         name: str
-        global_state: str
+        source: str
         encoding: str
-        state: State
+        global_state: State
         functions: Dict[str, State]
 
         def __str__(self) -> str:
@@ -75,7 +75,6 @@ class FlowPy:
             expecting_def = False
             upcoming_function_name = False
 
-            # TODO: Use one state for the entire run, or one per function? One per function, I guess.
             state = State()
             for token in tokens:
                 if token.type in to_skip:
@@ -102,7 +101,9 @@ class FlowPy:
                         self.global_state.combine(state)
                         state = State()
 
-    
+            self.functions[MAIN_SCRIPT] = self.global_state
+
+
     def get_source(self) -> Source:
         """
         Returns the source code as a Source object
@@ -147,7 +148,8 @@ class FlowPy:
             self.sources.append(self.Source(source_str, encoding=self.encoding, name=name))
         if args.verbose:
             print(f"\n----- Source code: -----\n{self.get_source()}\n-----")
-        self.functions = {}
+        # Why have this when we have functions for each source in self.sources
+        #self.functions = {}
         if not hasattr(sink, "write"):
             print("Error: Sink must have a write method", file=stderr)
             exit(1)
@@ -164,6 +166,9 @@ class FlowPy:
             # TODO: Evaluate source as Source
             state = source.global_state
             prog = ast.parse(str(source))
+            main_evaluator = Evaluator.from_AST(prog, State(), source.functions)
+            main_evaluator.evaluate()
+            """
             for nd in ast.walk(prog):
                 # TODO: Check other sources functions
                 if isinstance(nd, ast.FunctionDef) and nd.name in source.functions:
@@ -173,8 +178,9 @@ class FlowPy:
                         + f"> Evaluating function {nd.name} as specified by comments"
                         + "\033[0m"
                     )
-                    evaluator = FunctionEvaluator(nd, source.functions[nd.name])
+                    evaluator = FunctionDefEvaluator(nd, source.functions[nd.name])
                     result.append(evaluator.evaluate())
+            """
         return bool(list(filter(bool, result)))
 
 
@@ -190,7 +196,7 @@ def main():
         args.output = stdout
     flowpy = FlowPy(args.file, sink=args.output, encoding=args.encoding)
     flowpy.run()
-    print(flowpy.get_states())
+    #print(flowpy.get_states())
 
 
 if __name__ == "__main__":

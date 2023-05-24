@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 import ast
 import sys
+from typing import Dict
 from state import State
+from flowpy import MAIN_SCRIPT
 
 
 class Evaluator(ABC):
@@ -11,28 +13,34 @@ class Evaluator(ABC):
 
     node: ast.AST
     state: State
+    function_states: Dict[str, State]
 
     # Superclass for all evaluators
-    def __init__(self, node, state):
+    def __init__(self, node, state, function_states):
         self.node = node
         self.state = state
+        self.function_states = function_states
 
     @staticmethod
-    def from_AST(node: ast.AST, state):
+    def from_AST(node: ast.AST, state: State, function_states: Dict[str, State]):
         """
         Depending on type of node, return the appropriate subclass
         """
         match node.__class__:
             case ast.If:
-                return IfEvaluator(node, state)
+                return IfEvaluator(node, state, function_states)
             case ast.Assign:
-                return AssignEvaluator(node, state)
+                return AssignEvaluator(node, state, function_states)
             case ast.Expr:
-                return ExprEvaluator(node, state)
+                return ExprEvaluator(node, state, function_states)
             case ast.Call:
-                return CallEvaluator(node, state)
+                return CallEvaluator(node, state, function_states)
+            case ast.FunctionDef:
+                return FunctionDefEvaluator(node, state, function_states)
+            case ast.Module:
+                return ModuleEvaluator(node, state, function_states)
             case _:
-                return UnimplementedEvaluator(node, state)
+                return UnimplementedEvaluator(node, state, function_states)
 
     @staticmethod
     # Print a warning message
@@ -62,58 +70,55 @@ class UnimplementedEvaluator(Evaluator):
 
     node: ast.AST
     state: State
+    function_states: Dict[str, State]
 
-    def __init__(self, node: ast.AST, state: State):
-        super().__init__(node, state)
+    def __init__(self, node: ast.AST, state: State, function_states: Dict[str, State]):
+        super().__init__(node, state, function_states)
 
     def evaluate(self) -> bool:
         print(f"Evaluator not implemented for node {type(self.node)}.", file=sys.stderr)
         return True
 
 
-class FunctionEvaluator(Evaluator):
+class FunctionDefEvaluator(Evaluator):
     """
     Evaluate a function.
     """
 
     node: ast.FunctionDef
     state: State
+    function_states: Dict[str, State]
 
-    def __init__(self, node: ast.FunctionDef, state: State):
-        super().__init__(node, state)
+    def __init__(self, node: ast.FunctionDef, state: State, function_states: Dict[str, State]):
+        super().__init__(node, state, function_states)
+
+        if self.node.name in self.function_states:
+            self.state.combine(self.function_states[self.node.name])
 
     def evaluate(self) -> bool:
-        pc = self.state.get_pc()
-
         # for all nodes in the function
         for nd in self.node.body:
-            evaluator = Evaluator.from_AST(nd, self.state)
-            if not evaluator:
-                continue
+            evaluator = Evaluator.from_AST(nd, self.state.copy(copy_parent=False), self.function_states)
 
             if not evaluator.evaluate():
-                print(f"\tin function {self.node.name} (line {nd.lineno})")
                 return False
 
-        self.state.set_pc(pc)
         return True
 
 
 class IfEvaluator(Evaluator):
     node: ast.If
     state: State
+    function_states: Dict[str, State]
 
-    def __init__(self, node: ast.If, state: State):
-        super().__init__(node, state)
+    def __init__(self, node: ast.If, state: State, function_states: Dict[str, State]):
+        super().__init__(node, state, function_states)
 
     # If statements have a "test" (the conditional) which holds one node.
     # By looking at the Python grammar, the type this node may have is not that
     # restricted, but we should probably just assume we have a `name` or `compare`
     # for now (i.e. "if a" and "if a == b") as that gives a more reasonable scope.
     def evaluate(self) -> bool:
-        pc = self.state.get_pc()
-
-        # First, update PC
         if isinstance(self.node.test, ast.Compare):  # If we have e.g. "if a == b"
             # Check the LHS plus all the other variables/elements in the statement
             items = (
@@ -136,23 +141,24 @@ class IfEvaluator(Evaluator):
         # this includes `orelse` tokens.
         # `elif`s are represented as an `if` inside the `orelse` list.
         for nd in self.node.body + self.node.orelse:
-            evaluator = Evaluator.from_AST(nd, self.state)
+            evaluator = Evaluator.from_AST(nd, self.state.copy(copy_parent=False), self.function_states)
             evaluator.evaluate()
 
-        self.state.set_pc(pc)
         return True
 
 
 class AssignEvaluator(Evaluator):
     node: ast.Assign
     state: State
+    function_states: Dict[str, State]
 
-    def __init__(self, node: ast.Assign, state: State):
-        super().__init__(node, state)
+    def __init__(self, node: ast.Assign, state: State, function_states: Dict[str, State]):
+        super().__init__(node, state, function_states)
 
     def evaluate(self) -> bool:
         # Only support assignment of simple variables so far
         # (no lists, dicts etc. on RHS)
+        warned = False
         if isinstance(self.node.value, ast.Name):
             value_labels = self.state.get_labels(self.node.value.id)
             for tgt in self.node.targets:
@@ -165,13 +171,14 @@ class AssignEvaluator(Evaluator):
                             f"Assigning {self.node.value.id} to {tgt.id}, where {tgt.id} has labels {target_labels} and {self.node.value.id} has labels {value_labels}.",
                             tgt.lineno,
                         )
-                        return False
+                        warned = True
                     # If target is missing any of the labels in PC, warn.
                     if not self.state.get_pc().issubset(target_labels):
                         Evaluator.warn(
-                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}",
+                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc()}",
                             tgt.lineno,
                         )
+                        warned = True
                 else:
                     print(
                         f"Assigning to node {type(self.node.value)} not yet supported"
@@ -185,15 +192,16 @@ class AssignEvaluator(Evaluator):
                     target_labels = self.state.get_labels(tgt.id)
                     if not self.state.get_pc().issubset(target_labels):
                         Evaluator.warn(
-                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc}",
+                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc()}",
                             tgt.lineno,
                         )
+                        warned = True
 
         else:
             print(f"Assigning node {type(self.node.value)} not yet supported")
 
         # No "invalid" assignments have occurred
-        return True
+        return not warned
 
 
 class ExprEvaluator(Evaluator):
@@ -209,14 +217,15 @@ class ExprEvaluator(Evaluator):
 
     node: ast.Expr
     state: State
+    function_states: Dict[str, State]
 
-    def __init__(self, node: ast.Expr, state: State):
-        super().__init__(node, state)
+    def __init__(self, node: ast.Expr, state: State, function_states: Dict[str, State]):
+        super().__init__(node, state, function_states)
 
     # Since an expression acts as a wrapper, we just defer
     # IFC to the wrapped node.
     def evaluate(self) -> bool:
-        evaluator = Evaluator.from_AST(self.node.value, self.state)
+        evaluator = Evaluator.from_AST(self.node.value, self.state.copy(copy_parent=False), self.function_states)
         return evaluator.evaluate()
 
 
@@ -233,9 +242,10 @@ class CallEvaluator(Evaluator):
 
     node: ast.Call
     state: State
+    function_states: Dict[str, State]
 
-    def __init__(self, node: ast.Call, state: State):
-        super().__init__(node, state)
+    def __init__(self, node: ast.Call, state: State, function_states: Dict[str, State]):
+        super().__init__(node, state, function_states)
 
     def evaluate(self) -> bool:
         if self.state.get_pc():  # PC empty -> no restrictions
@@ -262,5 +272,30 @@ class CallEvaluator(Evaluator):
                 print(f"Call not implemented for type {self.node.func}")
 
             return False
+
+        return True
+
+
+class ModuleEvaluator(Evaluator):
+    """
+    Evaluate a module. This is basically the root of the entire AST for
+    "regular" python files.
+    """
+
+    node: ast.Module
+    state: State
+    function_states: Dict[str, State]
+
+    def __init__(self, node: ast.Module, state: State, function_states: Dict[str, State]):
+        super().__init__(node, state, function_states)
+        if MAIN_SCRIPT in self.function_states:
+            self.state.combine(self.function_states[MAIN_SCRIPT])
+
+    def evaluate(self) -> bool:
+        for nd in self.node.body:
+            evaluator = Evaluator.from_AST(nd, self.state.copy(copy_parent=False), self.function_states)
+
+            if not evaluator.evaluate():
+                return False
 
         return True
