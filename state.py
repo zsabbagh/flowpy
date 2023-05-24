@@ -14,9 +14,8 @@ class State:
 
     class __Rule:
         """
-        A checker class to see if a label matches
-        TODO: Might be computationally costly.
-        Maybe use prefix or substring instead?
+        The Rule class is used to store rules.
+        Each rule has a regex and a set of labels.
         """
 
         def __str__(self) -> str:
@@ -34,7 +33,8 @@ class State:
 
     def combine(self, other) -> None:
         """
-        Combines a state with another state
+        Combines a state with another state,
+        i.e. updates the PC and adds all missing labels
         """
         self.__pc.update(other.__pc)
         for regex, rule in other.__rules.items():
@@ -42,34 +42,49 @@ class State:
                 self.__rules[regex] = rule
             else:
                 self.__rules[regex].add(rule.labels)
-    
-    def __init__(self, other=None):
-        """
-        If other is a State, copy it.
 
-        other: A state to copy
+    def __init__(self, parent=None):
+        """
+        If parent is None, this is the root state
+
+        parent: The parent state
         """
         self.__rules = {}
         self.__pc = set()
-        if type(other)==State:
-            self.__pc = deepcopy(other.__pc)
-            self.__rules = deepcopy(other.__rules)
+        self.__parent = parent
 
-    def __str__(self):
+    def copy(self, copy_parent=True):
+        """
+        Returns a copy of this state
+        Uses deepcopy to avoid modifying the original state
+
+        copy_parent: If True, the parent state is copied as well
+        """
+        state = State()
+        state.__pc = deepcopy(self.__pc)
+        state.__rules = deepcopy(self.__rules)
+        if copy_parent:
+            state.__parent = self.__parent
+        else:
+            state.__parent = None
+        return state
+
+    def __str__(self) -> str:
         res = ["State: \n", f"\t<PC>: {self.__pc}"]
         for regex, rule in self.__rules.items():
             res.append(f"\t{regex}: {rule.labels}")
         return "\n".join(res)
 
-    def update_pc(self, labels):
+    def update_pc(self, labels) -> None:
         """
-        Update PC and adds all missing labels
+        Update PC and adds all missing labels.
+        Observe that labels are added, not overwritten.
         """
         self.__pc.update(labels)
 
     def set_pc(self, labels: set) -> None:
         """
-        Sets PC to labels, i.e. overwrite with labels
+        Sets PC to labels, i.e. overwrite with labels.
         """
         self.__pc = labels
 
@@ -78,7 +93,6 @@ class State:
         Gets the PC
         """
         return self.__pc
-
 
     def add_rules(self, comment: str) -> None:
         """
@@ -98,9 +112,11 @@ class State:
             try:
                 first, second = tuple(re.split(r":", rule))
                 regex = re.findall(r"[a-zA-Z0-9_\*]+", first)[0]
-                labels = list(filter(bool, (map(lambda x: x.strip(), second.split(",")))))
+                labels = list(
+                    filter(bool, (map(lambda x: x.strip(), second.split(","))))
+                )
                 if regex and labels:
-                    labels = list(filter(lambda x : x != '()', labels))
+                    labels = list(filter(lambda x: x != "()", labels))
                     if len(labels) == 0:
                         self.__rules[regex] = self.__Rule(regex, set())
                     elif regex not in self.__rules:
@@ -116,13 +132,18 @@ class State:
         """
         Input variable name to check.
         Returns labels as a set.
+        Gets all rules that apply to the variable and returns
+        all of the rules' labels.
 
         variable: The variable to check
         """
         result = set()
-        for _, rule in self.__rules.items():
-            if rule.applies_to(variable):
-                if rule.labels == set():
-                    return set()
-                result.update(rule.labels)
+        state = self
+        while len(result) == 0 and state is not None:
+            for _, rule in state.__rules.items():
+                if rule.applies_to(variable):
+                    if len(rule.labels) == 0:
+                        return set()
+                    result.update(rule.labels)
+            state = state.__parent
         return result
