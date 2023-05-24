@@ -20,7 +20,7 @@ class State:
         """
 
         def __str__(self) -> str:
-            return f"{self.regex}: {self.labels}"
+            return f"Rule {self.regex} -> {self.labels}"
 
         def __init__(self, restr, labels):
             self.regex = "^" + restr.replace("*", ".*") + "$"
@@ -122,7 +122,6 @@ class State:
         result = set()
         for _, rule in self.__rules.items():
             if rule.applies_to(variable):
-                print(f"Rule {rule} applies to {variable}")
                 if rule.labels == set():
                     return set()
                 result.update(rule.labels)

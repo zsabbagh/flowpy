@@ -47,10 +47,11 @@ class FlowPy:
         and extracting the comments
         """
 
-        name: str = ""
-        source: str = ""
-        encoding: str = ""
-        functions: Dict[str, State] = {}
+        name: str
+        global_state: str
+        encoding: str
+        state: State
+        functions: Dict[str, State]
 
         def __str__(self) -> str:
             return self.source
@@ -59,7 +60,8 @@ class FlowPy:
             self.name = name
             self.source = source
             self.encoding = encoding
-            functions: Dict[str, State] = {}
+            self.functions: Dict[str, State] = {}
+            self.global_state = State()
 
         def parse(self) -> None:
             """
@@ -74,9 +76,7 @@ class FlowPy:
             upcoming_function_name = False
 
             # TODO: Use one state for the entire run, or one per function? One per function, I guess.
-            global_state = State()
-            state = State(parent_state=global_state)
-            self.functions[MAIN_SCRIPT] = global_state
+            state = State()
             for token in tokens:
                 if token.type in to_skip:
                     continue
@@ -94,13 +94,13 @@ class FlowPy:
                     elif upcoming_function_name:
                         # Bind the state to that function and create a new state for the next
                         self.functions[token.string] = state
-                        state = State(parent_state=global_state)
+                        state = State()
                         upcoming_function_name = False
                         expecting_def = False
                     else:
                         expecting_def = False
-                        global_state.combine(state)
-                        state = State(parent_state=global_state)
+                        self.global_state.combine(state)
+                        state = State()
 
     
     def get_source(self) -> Source:
@@ -162,6 +162,7 @@ class FlowPy:
         result = []
         for source in self.sources:
             # TODO: Evaluate source as Source
+            state = source.global_state
             prog = ast.parse(str(source))
             for nd in ast.walk(prog):
                 # TODO: Check other sources functions
