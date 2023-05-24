@@ -13,3 +13,9 @@ Despite this ''just'' being our project for the course mentioned above, we try t
 We make heavy use of two main Python libraries: [tokenize](https://docs.python.org/3/library/tokenize.html) for parsing the comments used for telling `FlowPy` what functions to check, and [ast](https://docs.python.org/3/library/ast.html) to be able to properly analyse them.
 
 Each time we find one or more comments asking `FlowPy` to check a function, we parse all the rules present in these comments while looking for the function name. The parsed rules are placed into a `State` object, which keeps track of the current security context and each variable's security labels, and when we find the function name we store it together with the `State`. Once the entire file has been parsed, we create a `FunctionEvaluator` for each function and start the evaluation. This traverses the AST in order, verifying each statement or expression using a set of predetermined rules. If any breaches of these rules are found, `FlowPy` will output a warning for each of these cases.
+
+## ToDos
+
+- Have FlowPy as recursive or DFS-like evaluation of scopes, whereof scopes are `def`'s, etc.
+- The script is treated as the entry point and all functions inherit the state from the 
+global `State` which belongs to the script.
