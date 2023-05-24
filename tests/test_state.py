@@ -67,7 +67,7 @@ def test_unit_rule():
     assert state.get_labels("a") == set()
     assert state.get_labels("b") == set()
 
-def test_labels_rule_order():
+def test_rule_order():
     """
     Test that labels are applied in the order they are given.
     Unit rules should be applied first and take precedence.
@@ -79,3 +79,19 @@ def test_labels_rule_order():
     assert state.get_labels("a") == {"label", "label2"}
     state.add_rules("*: ().")
     assert state.get_labels("a") == set()
+
+def test_copy_state():
+    """
+    Tests that copying a state works as expected.
+    Deepcopy is used to avoid modifying the original state.
+    """
+    state = State()
+    state.add_rules("a: label.")
+    assert state.get_labels("a") == {"label"}
+    state2 = State(state)
+    state.add_rules("a*: label2.")
+    assert state.get_labels("a") == {"label", "label2"}
+    assert state2.get_labels("a") == {"label"}
+    state2.add_rules("a*: label3.")
+    assert state.get_labels("a") == {"label", "label2"}
+    assert state2.get_labels("a") == {"label", "label3"}
