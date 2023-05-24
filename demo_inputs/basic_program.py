@@ -1,4 +1,10 @@
-#fp foo: highlabel. bar: lowlabel
+# fp fo*: hihi.
+fo = None
+if fo:
+    pass
+
+
+# fp bar: coco.
 def main():
     foo = 1
     bar = 0

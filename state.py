@@ -18,9 +18,15 @@ class State:
         Maybe use prefix or substring instead?
         """
 
+        def __str__(self) -> str:
+            return f"{self.regex}: {self.labels}"
+
         def __init__(self, restr, labels):
             self.regex = "^" + restr.replace("*", ".*") + "$"
-            self.labels = set(labels)
+            if len(labels) == 1 and labels[0] == "()":
+                self.labels = set()
+            else:
+                self.labels = set(labels)
 
         def add(self, labels):
             self.labels.update(labels)
@@ -42,10 +48,11 @@ class State:
             self.__pc = parent_state.__pc
 
     def __str__(self):
-        res = ["State: \n", f"\t<PC>: {self.__pc}\n\t"]
+        res = ["State: \n", f"\t<PC>: {self.__pc}"]
         for regex, rule in self.__rules.items():
-            res.append(f"{regex}: {rule.labels}\n\t")
-        return "".join(res)
+            res.append(f"\t{regex}: {rule.labels}")
+        res.append("\tparent state: " + str(self.__parent))
+        return "\n".join(res)
 
     def update_pc(self, labels):
         """
@@ -53,17 +60,28 @@ class State:
         """
         self.__pc.update(labels)
 
-    def set_pc(self, labels: set):
+    def set_pc(self, labels: set) -> None:
         """
         Sets PC to labels, i.e. overwrite with labels
         """
         self.__pc = labels
 
-    def get_pc(self):
+    def get_pc(self) -> set:
         """
         Gets the PC
         """
         return self.__pc
+
+    def combine(self, other) -> None:
+        """
+        Combines a state with another state
+        """
+        self.__pc.update(other.__pc)
+        for regex, rule in other.__rules.items():
+            if regex not in self.__rules:
+                self.__rules[regex] = rule
+            else:
+                self.__rules[regex].add(rule.labels)
 
     def add_rules(self, comment: str) -> None:
         """
@@ -94,20 +112,20 @@ class State:
                 print(e)
                 continue
 
-    def get_labels(self, variable: str, depth: int = -1) -> set:
+    def get_labels(self, variable: str, depth: int = -1, result=set()) -> set:
         """
         Input variable name to check.
         Returns labels as a set.
         Checks parent state if it exists.
 
+        result: Used for recursion, don't use.
         variable: The variable to check
         depth: How many levels to check (default: -1, i.e. infinite, 0: no parent)
         """
-        result = set()
         for _, rule in self.__rules.items():
             if rule.applies_to(variable):
                 result.update(rule.labels)
         # Recursively check labels if none is find
         if len(result) == 0 and type(self.__parent) == State and depth != 0:
-            result = self.__parent.get_labels(result, depth=depth-1)
+            result.update(self.__parent.get_labels(variable, depth=depth-1, result=result))
         return result
