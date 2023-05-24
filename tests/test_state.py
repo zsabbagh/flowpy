@@ -1,5 +1,6 @@
 from ..state import State
 
+
 def test_rule_parsing():
     """
     Test that the rule parsing works as expected.
@@ -12,6 +13,7 @@ def test_rule_parsing():
     assert state.get_labels("a") == {"my_label", "my_label_2"}
     assert state.get_labels("b") == {"other_label"}
 
+
 def test_wildcards():
     """
     Test that the wildcard rules work as expected.
@@ -21,6 +23,7 @@ def test_wildcards():
     assert state.get_labels("a") == {"my_label", "my_label_2"}
     assert state.get_labels("another_variable") == {"my_label", "my_label_2"}
     assert state.get_labels("b") == {"other_label"}
+
 
 def test_wildcards_with_ending():
     """
@@ -33,6 +36,7 @@ def test_wildcards_with_ending():
     assert state.get_labels("acceptable") == set(["my_label", "my_label_2"])
     assert state.get_labels("b") == {"other_label"}
 
+
 def test_rules_with_no_labels():
     """
     Test rules with no labels.
@@ -43,6 +47,7 @@ def test_rules_with_no_labels():
     assert state.get_labels("should_be_empty") == set()
     assert state.get_labels("should_also_be_empty") == set()
     assert state.get_labels("b_should_not_be_empty") == {"other_label"}
+
 
 def test_pure_wildcards():
     """
@@ -55,6 +60,7 @@ def test_pure_wildcards():
     assert state.get_labels("bar") == {"a", "b", "c", "d", "e"}
     assert state.get_labels("baz") == {"a", "b", "c", "d", "e"}
 
+
 def test_unit_rule():
     """
     Test that unit rules work as expected.
@@ -66,6 +72,7 @@ def test_unit_rule():
     state.add_rules("*: ()")
     assert state.get_labels("a") == set()
     assert state.get_labels("b") == set()
+
 
 def test_rule_order():
     """
@@ -80,6 +87,7 @@ def test_rule_order():
     state.add_rules("*: ().")
     assert state.get_labels("a") == set()
 
+
 def test_copy_state():
     """
     Tests that copying a state works as expected.
@@ -88,10 +96,37 @@ def test_copy_state():
     state = State()
     state.add_rules("a: label.")
     assert state.get_labels("a") == {"label"}
-    state2 = State(state)
+    state2 = state.copy()
     state.add_rules("a*: label2.")
     assert state.get_labels("a") == {"label", "label2"}
     assert state2.get_labels("a") == {"label"}
     state2.add_rules("a*: label3.")
     assert state.get_labels("a") == {"label", "label2"}
     assert state2.get_labels("a") == {"label", "label3"}
+
+
+def test_inheritence():
+    """
+    Tests that inheritence works as expected.
+    """
+    parent = State()
+    parent.add_rules("a: label.")
+    state = State(parent)
+    assert state.get_labels("a") == {"label"}
+    state.add_rules("ab: label2.")
+    assert parent.get_labels("a") == {"label"}
+    assert state.get_labels("a") == {"label"}
+    assert state.get_labels("ab") == {"label2"}
+
+
+def test_combine():
+    """
+    Tests that combining states works as expected.
+    """
+    state = State()
+    state.add_rules("a: label.")
+    state2 = State()
+    state2.add_rules("a: label2.")
+    state.combine(state2)
+    assert state.get_labels("a") == {"label", "label2"}
+    assert state2.get_labels("a") == {"label2"}
