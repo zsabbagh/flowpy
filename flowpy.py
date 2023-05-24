@@ -159,6 +159,7 @@ class FlowPy:
         Runs the program and evaluates the functions.
         Evaluates the code based on the FlowPy comments.
         """
+        result = []
         for source in self.sources:
             # TODO: Evaluate source as Source
             prog = ast.parse(str(source))
@@ -172,7 +173,8 @@ class FlowPy:
                         + "\033[0m"
                     )
                     evaluator = FunctionEvaluator(nd, source.functions[nd.name])
-                    evaluator.evaluate()
+                    result.append(evaluator.evaluate())
+        return bool(list(filter(bool, result)))
 
 
 def main():
