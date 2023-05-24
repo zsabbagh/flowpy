@@ -3,6 +3,7 @@
     current state of variables.
 """
 import re
+from copy import deepcopy
 
 
 class State:
@@ -23,35 +24,41 @@ class State:
 
         def __init__(self, restr, labels):
             self.regex = "^" + restr.replace("*", ".*") + "$"
-            if len(labels) == 1 and labels[0] == "()":
-                self.labels = set()
-            else:
-                self.labels = set(labels)
+            self.labels = set(labels)
 
         def add(self, labels):
             self.labels.update(labels)
 
         def applies_to(self, value):
             return bool(re.search(self.regex, value))
-    
-    def __init__(self, parent_state=None):
+
+    def combine(self, other) -> None:
         """
-        If parent_state is provided,
-        PC is inherited and get_labels becomes
-        (potentially) recursive, if no matches exists
-        in the current state.
+        Combines a state with another state
+        """
+        self.__pc.update(other.__pc)
+        for regex, rule in other.__rules.items():
+            if regex not in self.__rules:
+                self.__rules[regex] = rule
+            else:
+                self.__rules[regex].add(rule.labels)
+    
+    def __init__(self, other=None):
+        """
+        If other is a State, copy it.
+
+        other: A state to copy
         """
         self.__rules = {}
         self.__pc = set()
-        self.__parent = parent_state
-        if parent_state is not None:
-            self.__pc = parent_state.__pc
+        if type(other)==State:
+            self.__pc = deepcopy(other.__pc)
+            self.__rules = deepcopy(other.__rules)
 
     def __str__(self):
         res = ["State: \n", f"\t<PC>: {self.__pc}"]
         for regex, rule in self.__rules.items():
             res.append(f"\t{regex}: {rule.labels}")
-        res.append("\tparent state: " + str(self.__parent))
         return "\n".join(res)
 
     def update_pc(self, labels):
@@ -72,16 +79,6 @@ class State:
         """
         return self.__pc
 
-    def combine(self, other) -> None:
-        """
-        Combines a state with another state
-        """
-        self.__pc.update(other.__pc)
-        for regex, rule in other.__rules.items():
-            if regex not in self.__rules:
-                self.__rules[regex] = rule
-            else:
-                self.__rules[regex].add(rule.labels)
 
     def add_rules(self, comment: str) -> None:
         """
@@ -103,7 +100,10 @@ class State:
                 regex = re.findall(r"[a-zA-Z0-9_\*]+", first)[0]
                 labels = list(filter(bool, (map(lambda x: x.strip(), second.split(",")))))
                 if regex and labels:
-                    if regex not in self.__rules:
+                    labels = list(filter(lambda x : x != '()', labels))
+                    if len(labels) == 0:
+                        self.__rules[regex] = self.__Rule(regex, set())
+                    elif regex not in self.__rules:
                         self.__rules[regex] = self.__Rule(regex, labels)
                     else:
                         self.__rules[regex].add(labels)
@@ -112,20 +112,18 @@ class State:
                 print(e)
                 continue
 
-    def get_labels(self, variable: str, depth: int = -1, result=set()) -> set:
+    def get_labels(self, variable: str) -> set:
         """
         Input variable name to check.
         Returns labels as a set.
-        Checks parent state if it exists.
 
-        result: Used for recursion, don't use.
         variable: The variable to check
-        depth: How many levels to check (default: -1, i.e. infinite, 0: no parent)
         """
+        result = set()
         for _, rule in self.__rules.items():
             if rule.applies_to(variable):
+                print(f"Rule {rule} applies to {variable}")
+                if rule.labels == set():
+                    return set()
                 result.update(rule.labels)
-        # Recursively check labels if none is find
-        if len(result) == 0 and type(self.__parent) == State and depth != 0:
-            result.update(self.__parent.get_labels(variable, depth=depth-1, result=result))
         return result

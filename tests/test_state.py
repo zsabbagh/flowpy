@@ -6,6 +6,9 @@ def test_rule_parsing():
     """
     state = State()
     state.add_rules("a: my_label, my_label_2. b: other_label")
+    print(state.get_labels("b"))
+    print(state.get_labels("a"))
+    print(state.get_labels("b"))
     assert state.get_labels("a") == {"my_label", "my_label_2"}
     assert state.get_labels("b") == {"other_label"}
 
@@ -51,3 +54,28 @@ def test_pure_wildcards():
     assert state.get_labels("foo") == {"a", "b", "c", "d", "e"}
     assert state.get_labels("bar") == {"a", "b", "c", "d", "e"}
     assert state.get_labels("baz") == {"a", "b", "c", "d", "e"}
+
+def test_unit_rule():
+    """
+    Test that unit rules work as expected.
+    """
+    state = State()
+    state.add_rules("a: (), label. b: ().")
+    assert state.get_labels("a") == {"label"}
+    assert state.get_labels("b") == set()
+    state.add_rules("*: ()")
+    assert state.get_labels("a") == set()
+    assert state.get_labels("b") == set()
+
+def test_labels_rule_order():
+    """
+    Test that labels are applied in the order they are given.
+    Unit rules should be applied first and take precedence.
+    """
+    state = State()
+    state.add_rules("a: label.")
+    assert state.get_labels("a") == {"label"}
+    state.add_rules("a*: label2.")
+    assert state.get_labels("a") == {"label", "label2"}
+    state.add_rules("*: ().")
+    assert state.get_labels("a") == set()
