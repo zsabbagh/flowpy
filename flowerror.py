@@ -1,4 +1,5 @@
-from flowpy import Format
+import ast
+from flowpy import Format, FLOWPY_ARGS
 
 class FlowVar:
     """
@@ -10,7 +11,7 @@ class FlowVar:
         self.labels = labels
 
     def __str__(self):
-        return f"{self.name} : {self.labels}"
+        return f"{Format.BOLD}{self.name}{Format.END} : {Format.GREY}{self.labels if self.labels is not None else 'untracked'}{Format.END}"
 
 
 # Purpose: Defines the base class for all flow faults.
@@ -22,16 +23,23 @@ class FlowError(Exception):
 
     def __init__(
         self,
-        linenr=None,
+        node: ast.AST=None,
         var_to=None,
         info="",
     ) -> None:
         """
         Initialise a flow error.
         """
-        self.linenr: int = linenr
+        self.node: ast.AST = node
+        self.line: int = None if node is None else node.lineno
         self.var_to: FlowVar = var_to
-        self.info: str = info
+        self.info: list = info
+
+    def get_code(self):
+        """
+        Returns the code that caused the error.
+        """
+        return ast.unparse(self.node)
 
 class ImplicitFlowError(FlowError):
     """
@@ -40,19 +48,20 @@ class ImplicitFlowError(FlowError):
     """
 
     def __init__(
-        self, linenr=-1, pc: set = None, var_to: FlowVar = None, info: str = ""
+        self, node: ast.AST, pc: set = None, var_to: FlowVar = None, info: str = ""
     ) -> None:
-        super().__init__(linenr, var_to, info)
+        super().__init__(node, var_to, info)
         self.pc = pc
 
     def __str__(self) -> str:
         message = [
-            f"{Format.BOLD+Format.ORANGE}Implicit Flow Error{Format.END} {Format.YELLOW + Format.UNDERLINE}@ line {self.linenr}{Format.END}",
-            f"{Format.GREY}PC:{Format.END}     \t{self.pc}",
-            f"{Format.GREY}Variable:{Format.END} \t{self.var_to}",
+            f"{Format.BOLD+Format.ORANGE}Implicit Flow Error{Format.END}",
+            f"{Format.YELLOW + Format.UNDERLINE}@ line {self.line}{Format.END}: \t{Format.GREY}{self.get_code()}{Format.END}",
+            f"{Format.BOLD}PC:{Format.END}     \t{Format.GREY}{self.pc}{Format.END}",
+            f"{Format.BOLD}Target:{Format.END} \t{self.var_to}",
         ]
         if self.info:
-            message.append(f"Info: {self.info}")
+            message[0] += f": {self.info}"
         return '\n\t'.join(message)
 
 
@@ -64,20 +73,21 @@ class ExplicitFlowError(FlowError):
 
     def __init__(
         self,
-        linenr: int = None,
+        node: ast.AST,
         var_from: FlowVar = None,
         var_to: FlowVar = None,
         info: str = "",
     ) -> None:
-        super().__init__(linenr, var_to, info)
+        super().__init__(node, var_to, info)
         self.var_from = var_from
 
     def __str__(self) -> str:
         message = [
-            f"{Format.BOLD+Format.ORANGE}Explicit Flow Error{Format.END} {Format.YELLOW + Format.UNDERLINE}@ line {self.linenr}{Format.END}",
-            f"{Format.GREY}Variable:{Format.END} \t{self.var_from}",
-            f"{Format.GREY}Target:{Format.END} \t{self.var_to}",
+            f"{Format.BOLD+Format.ORANGE}Explicit Flow Error{Format.END}",
+            f"{Format.YELLOW + Format.UNDERLINE}@ line {self.line}{Format.END}: \t{Format.GREY}{self.get_code()}{Format.END}",
+            f"{Format.BOLD}Value:{Format.END}   \t{self.var_from}",
+            f"{Format.BOLD}Target:{Format.END} \t{self.var_to}",
         ]
         if self.info:
-            message.append(f"Info: {self.info}")
+            message[0] += f": {self.info}"
         return '\n\t'.join(message)

@@ -183,9 +183,10 @@ class AssignEvaluator(Evaluator):
                     if not value_labels.issubset(target_labels):
                         warnings.append(
                             ExplicitFlowError(
-                                tgt.lineno,
+                                self.node,
                                 FlowVar(self.node.value.id, value_labels),
                                 FlowVar(tgt.id, target_labels),
+                                f"Target missing labels {value_labels - target_labels}",
                             )
                         )
 
@@ -193,9 +194,10 @@ class AssignEvaluator(Evaluator):
                     if not self.state.get_pc().issubset(target_labels):
                         warnings.append(
                             ImplicitFlowError(
-                                tgt.lineno,
+                                self.node,
                                 self.state.get_pc(),
                                 var_to=FlowVar(tgt.id, target_labels),
+                                info=f"Target missing labels {self.state.get_pc() - target_labels}",
                             )
                         )
                 else:
@@ -212,11 +214,11 @@ class AssignEvaluator(Evaluator):
                     target_labels = self.state.get_labels(tgt.id)
                     if not self.state.get_pc().issubset(target_labels):
                         warnings.append(
-                            FlowError(
-                                False,
-                                tgt.lineno,
+                            ImplicitFlowError(
+                                self.node,
                                 self.state.get_pc(),
                                 var_to=FlowVar(tgt.id, target_labels),
+                                info="PC is not a subset of target's labels",
                             )
                         )
 
@@ -281,10 +283,10 @@ class CallEvaluator(Evaluator):
             if isinstance(self.node.func, ast.Name):
                 warnings.append(
                     ImplicitFlowError(
-                        self.node.func.lineno,
+                        self.node,
                         self.state.get_pc(),
                         FlowVar(self.node.func.id, None),
-                        "Non-tracked function call with non-empty PC",
+                        "Untracked function call with non-empty PC",
                     )
                 )
             else:
@@ -299,11 +301,11 @@ class CallEvaluator(Evaluator):
                 if isinstance(self.node.func, ast.Name):
                     warnings.append(
                         ExplicitFlowError(
-                            self.node.func.lineno,
+                            self.node,
                             FlowVar(arg.id, self.state.get_labels(arg.id)),
                             FlowVar(self.node.func.id, None),
+                            "Untracked function call with non-empty argument",
                         ),
-                        "Non-tracked function call with non-empty argument",
                     )
             else:
                 Evaluator.warn(

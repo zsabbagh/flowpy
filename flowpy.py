@@ -36,6 +36,8 @@ class Format:
     Class for formatting output
     """
     UNDERLINE = '\033[4m' if FLOWPY_ARGS.colour else ''
+    CYAN = '\033[96m' if FLOWPY_ARGS.colour else ''
+    BLUE = '\033[94m' if FLOWPY_ARGS.colour else ''
     GREEN = '\033[92m' if FLOWPY_ARGS.colour else ''
     YELLOW = '\033[93m' if FLOWPY_ARGS.colour else ''
     RED = '\033[91m' if FLOWPY_ARGS.colour else ''
