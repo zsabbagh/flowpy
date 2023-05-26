@@ -43,30 +43,21 @@ class State:
             else:
                 self.__rules[regex].add(rule.labels)
 
-    def __init__(self, parent=None):
+    def __init__(self):
         """
-        If parent is None, this is the root state
-
-        parent: The parent state
+        Initialise a state.
         """
         self.__rules = {}
         self.__pc = set()
-        self.__parent = parent
 
-    def copy(self, copy_parent=True):
+    def copy(self):
         """
         Returns a copy of this state
         Uses deepcopy to avoid modifying the original state
-
-        copy_parent: If True, the parent state is copied as well
         """
         state = State()
         state.__pc = deepcopy(self.__pc)
         state.__rules = deepcopy(self.__rules)
-        if copy_parent:
-            state.__parent = self.__parent
-        else:
-            state.__parent = None
         return state
 
     def __str__(self) -> str:
@@ -138,12 +129,9 @@ class State:
         variable: The variable to check
         """
         result = set()
-        state = self
-        while len(result) == 0 and state is not None:
-            for _, rule in state.__rules.items():
-                if rule.applies_to(variable):
-                    if len(rule.labels) == 0:
-                        return set()
-                    result.update(rule.labels)
-            state = state.__parent
+        for _, rule in self.__rules.items():
+            if rule.applies_to(variable):
+                if len(rule.labels) == 0:
+                    return set()
+                result.update(rule.labels)
         return result

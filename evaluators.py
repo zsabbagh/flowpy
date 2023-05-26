@@ -98,7 +98,7 @@ class FunctionDefEvaluator(Evaluator):
     def evaluate(self) -> bool:
         # for all nodes in the function
         for nd in self.node.body:
-            evaluator = Evaluator.from_AST(nd, self.state.copy(copy_parent=False), self.function_states)
+            evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
 
             if not evaluator.evaluate():
                 return False
@@ -141,7 +141,7 @@ class IfEvaluator(Evaluator):
         # this includes `orelse` tokens.
         # `elif`s are represented as an `if` inside the `orelse` list.
         for nd in self.node.body + self.node.orelse:
-            evaluator = Evaluator.from_AST(nd, self.state.copy(copy_parent=False), self.function_states)
+            evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
             evaluator.evaluate()
 
         return True
@@ -225,7 +225,7 @@ class ExprEvaluator(Evaluator):
     # Since an expression acts as a wrapper, we just defer
     # IFC to the wrapped node.
     def evaluate(self) -> bool:
-        evaluator = Evaluator.from_AST(self.node.value, self.state.copy(copy_parent=False), self.function_states)
+        evaluator = Evaluator.from_AST(self.node.value, self.state.copy(), self.function_states)
         return evaluator.evaluate()
 
 
@@ -293,7 +293,7 @@ class ModuleEvaluator(Evaluator):
 
     def evaluate(self) -> bool:
         for nd in self.node.body:
-            evaluator = Evaluator.from_AST(nd, self.state.copy(copy_parent=False), self.function_states)
+            evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
 
             if not evaluator.evaluate():
                 return False
