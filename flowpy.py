@@ -10,6 +10,7 @@ from state import State
 from argparse import ArgumentParser
 from evaluators import *
 
+
 parser = ArgumentParser(prog="flowpy", description="""
           ___                  ___         ___         ___
      /\__\                /\  \       /\  \       /\  \
@@ -27,7 +28,21 @@ parser.add_argument("file", nargs="*", help="File(s) to check, defaults to stdin
 parser.add_argument("-v", "--verbose", action="store_true", help="Verbose messages")
 parser.add_argument("-e", "--encoding", help="Encoding to use", default='utf-8')
 parser.add_argument("-o", "--output", help="Output file", default='stdout')
-args = parser.parse_args()
+parser.add_argument("-c", "--colour", action="store_true", help="Colour output")
+FLOWPY_ARGS = parser.parse_args()
+
+class Format:
+    """
+    Class for formatting output
+    """
+    UNDERLINE = '\033[4m' if FLOWPY_ARGS.colour else ''
+    GREEN = '\033[92m' if FLOWPY_ARGS.colour else ''
+    YELLOW = '\033[93m' if FLOWPY_ARGS.colour else ''
+    RED = '\033[91m' if FLOWPY_ARGS.colour else ''
+    GREY = '\033[90m' if FLOWPY_ARGS.colour else ''
+    BOLD = '\033[;1m' if FLOWPY_ARGS.colour else ''
+    END = '\033[0m' if FLOWPY_ARGS.colour else ''
+    ORANGE = '\033[38;5;208m' if FLOWPY_ARGS.colour else ''
 
 FLOWPY_PREFIX = "fp"
 MAIN_SCRIPT = '__global_script__'
@@ -146,7 +161,7 @@ class FlowPy:
             if not name:
                 name = os.urandom(8).hex()
             self.sources.append(self.Source(source_str, encoding=self.encoding, name=name))
-        if args.verbose:
+        if FLOWPY_ARGS.verbose:
             print(f"\n----- Source code: -----\n{self.get_source()}\n-----")
         # Why have this when we have functions for each source in self.sources
         #self.functions = {}
@@ -163,38 +178,30 @@ class FlowPy:
         """
         result = []
         for source in self.sources:
-            # TODO: Evaluate source as Source
-            state = source.global_state
             prog = ast.parse(str(source))
             main_evaluator = Evaluator.from_AST(prog, State(), source.functions)
-            main_evaluator.evaluate()
-            """
-            for nd in ast.walk(prog):
-                # TODO: Check other sources functions
-                if isinstance(nd, ast.FunctionDef) and nd.name in source.functions:
-                    # Evaluate the function
-                    print(
-                        "\033[;1m"
-                        + f"> Evaluating function {nd.name} as specified by comments"
-                        + "\033[0m"
-                    )
-                    evaluator = FunctionDefEvaluator(nd, source.functions[nd.name])
-                    result.append(evaluator.evaluate())
-            """
-        return bool(list(filter(bool, result)))
+            warnings = main_evaluator.evaluate()
+            if len(warnings) > 0:
+                print(f"\n{Format.UNDERLINE+Format.RED}FlowError(s) detected!{Format.END}")
+                print(f"{len(warnings)} warnings from source '{Format.UNDERLINE+Format.RED}{source.name}{Format.END}':")
+                for warning in warnings:
+                    print()
+                    print(warning)
+                    result.append(warning)
+        return result
 
 
 def main():
     print("~~~ FlowPy v0.1 ~~~")
-    if args.verbose:
+    if FLOWPY_ARGS.verbose:
         print("\n <><< Verbose mode enabled >><> \n")
-    if args.file == "stdin":
-        args.file = stdin
-    if args.verbose:
-        print(f"Reading from {args.file}")
-    if args.output == "stdout":
-        args.output = stdout
-    flowpy = FlowPy(args.file, sink=args.output, encoding=args.encoding)
+    if FLOWPY_ARGS.file == "stdin":
+        FLOWPY_ARGS.file = stdin
+    if FLOWPY_ARGS.verbose:
+        print(f"Reading from {FLOWPY_ARGS.file}")
+    if FLOWPY_ARGS.output == "stdout":
+        FLOWPY_ARGS.output = stdout
+    flowpy = FlowPy(FLOWPY_ARGS.file, sink=FLOWPY_ARGS.output, encoding=FLOWPY_ARGS.encoding)
     flowpy.run()
     #print(flowpy.get_states())
 

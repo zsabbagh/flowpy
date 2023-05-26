@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 import ast
 import sys
-from typing import Dict
+from typing import Dict, List
 from state import State
-from flowpy import MAIN_SCRIPT
+from flowpy import MAIN_SCRIPT, FLOWPY_ARGS
+from flowerror import FlowError, ImplicitFlowError, ExplicitFlowError, FlowVar
 
 
 class Evaluator(ABC):
@@ -48,7 +49,12 @@ class Evaluator(ABC):
         """
         Print a warning message
         """
-        print("\033[33;1m" + f"WARNING (line {line}):" + "\033[0m", f"\033[;1m{msg}\033[0m", file=sys.stderr)
+        if FLOWPY_ARGS.verbose:
+            print(
+                "\033[33;1m" + f"WARNING (line {line}):" + "\033[0m",
+                f"\033[;1m{msg}\033[0m",
+                file=sys.stderr,
+            )
 
     @abstractmethod
     def evaluate(self) -> bool:
@@ -75,9 +81,10 @@ class UnimplementedEvaluator(Evaluator):
     def __init__(self, node: ast.AST, state: State, function_states: Dict[str, State]):
         super().__init__(node, state, function_states)
 
-    def evaluate(self) -> bool:
-        print(f"Evaluator not implemented for node {type(self.node)}.", file=sys.stderr)
-        return True
+    def evaluate(self) -> List[FlowError]:
+        # TODO: Make verbosable
+        Evaluator.warn(f"Evaluator not implemented for node {type(self.node)}.", self.node.lineno)
+        return []
 
 
 class FunctionDefEvaluator(Evaluator):
@@ -89,21 +96,21 @@ class FunctionDefEvaluator(Evaluator):
     state: State
     function_states: Dict[str, State]
 
-    def __init__(self, node: ast.FunctionDef, state: State, function_states: Dict[str, State]):
+    def __init__(
+        self, node: ast.FunctionDef, state: State, function_states: Dict[str, State]
+    ):
         super().__init__(node, state, function_states)
 
         if self.node.name in self.function_states:
             self.state.combine(self.function_states[self.node.name])
 
-    def evaluate(self) -> bool:
+    def evaluate(self) -> List[FlowError]:
         # for all nodes in the function
+        warnings = []
         for nd in self.node.body:
             evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
-
-            if not evaluator.evaluate():
-                return False
-
-        return True
+            warnings.extend(evaluator.evaluate())
+        return warnings
 
 
 class IfEvaluator(Evaluator):
@@ -118,7 +125,11 @@ class IfEvaluator(Evaluator):
     # By looking at the Python grammar, the type this node may have is not that
     # restricted, but we should probably just assume we have a `name` or `compare`
     # for now (i.e. "if a" and "if a == b") as that gives a more reasonable scope.
-    def evaluate(self) -> bool:
+    def evaluate(self) -> List[FlowError]:
+        """
+        Evaluate the contents of an if statement.
+        """
+        warnings = []
         if isinstance(self.node.test, ast.Compare):  # If we have e.g. "if a == b"
             # Check the LHS plus all the other variables/elements in the statement
             items = (
@@ -142,9 +153,9 @@ class IfEvaluator(Evaluator):
         # `elif`s are represented as an `if` inside the `orelse` list.
         for nd in self.node.body + self.node.orelse:
             evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
-            evaluator.evaluate()
+            warnings.extend(evaluator.evaluate())
 
-        return True
+        return warnings
 
 
 class AssignEvaluator(Evaluator):
@@ -152,13 +163,16 @@ class AssignEvaluator(Evaluator):
     state: State
     function_states: Dict[str, State]
 
-    def __init__(self, node: ast.Assign, state: State, function_states: Dict[str, State]):
+    def __init__(
+        self, node: ast.Assign, state: State, function_states: Dict[str, State]
+    ):
         super().__init__(node, state, function_states)
 
     def evaluate(self) -> bool:
         # Only support assignment of simple variables so far
         # (no lists, dicts etc. on RHS)
         warned = False
+        warnings = []
         if isinstance(self.node.value, ast.Name):
             value_labels = self.state.get_labels(self.node.value.id)
             for tgt in self.node.targets:
@@ -167,21 +181,27 @@ class AssignEvaluator(Evaluator):
 
                     # If the assingned value has any labels that the target doesn't, warn.
                     if not value_labels.issubset(target_labels):
-                        Evaluator.warn(
-                            f"Assigning {self.node.value.id} to {tgt.id}, where {tgt.id} has labels {target_labels} and {self.node.value.id} has labels {value_labels}.",
-                            tgt.lineno,
+                        warnings.append(
+                            ExplicitFlowError(
+                                tgt.lineno,
+                                FlowVar(self.node.value.id, value_labels),
+                                FlowVar(tgt.id, target_labels),
+                            )
                         )
-                        warned = True
+
                     # If target is missing any of the labels in PC, warn.
                     if not self.state.get_pc().issubset(target_labels):
-                        Evaluator.warn(
-                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc()}",
-                            tgt.lineno,
+                        warnings.append(
+                            ImplicitFlowError(
+                                tgt.lineno,
+                                self.state.get_pc(),
+                                var_to=FlowVar(tgt.id, target_labels),
+                            )
                         )
-                        warned = True
                 else:
-                    print(
-                        f"Assigning to node {type(self.node.value)} not yet supported"
+                    Evaluator.warn(
+                        f"Assigning node {type(self.node.value)} not yet supported",
+                        self.node.lineno,
                     )
 
         # TODO: This is very similar to the ast.Name case. Perhaps do something to avoid code duplication?
@@ -191,17 +211,23 @@ class AssignEvaluator(Evaluator):
                 if isinstance(tgt, ast.Name):
                     target_labels = self.state.get_labels(tgt.id)
                     if not self.state.get_pc().issubset(target_labels):
-                        Evaluator.warn(
-                            f"Assigning to variable {tgt.id} with labels {target_labels} despite PC being {self.state.get_pc()}",
-                            tgt.lineno,
+                        warnings.append(
+                            FlowError(
+                                False,
+                                tgt.lineno,
+                                self.state.get_pc(),
+                                var_to=FlowVar(tgt.id, target_labels),
+                            )
                         )
-                        warned = True
 
         else:
-            print(f"Assigning node {type(self.node.value)} not yet supported")
+            Evaluator.warn(
+                f"Assigning node {type(self.node.value)} not yet supported",
+                self.node.lineno,
+            )
 
         # No "invalid" assignments have occurred
-        return not warned
+        return warnings
 
 
 class ExprEvaluator(Evaluator):
@@ -224,8 +250,10 @@ class ExprEvaluator(Evaluator):
 
     # Since an expression acts as a wrapper, we just defer
     # IFC to the wrapped node.
-    def evaluate(self) -> bool:
-        evaluator = Evaluator.from_AST(self.node.value, self.state.copy(), self.function_states)
+    def evaluate(self) -> List[FlowError]:
+        evaluator = Evaluator.from_AST(
+            self.node.value, self.state.copy(), self.function_states
+        )
         return evaluator.evaluate()
 
 
@@ -247,33 +275,42 @@ class CallEvaluator(Evaluator):
     def __init__(self, node: ast.Call, state: State, function_states: Dict[str, State]):
         super().__init__(node, state, function_states)
 
-    def evaluate(self) -> bool:
+    def evaluate(self) -> List[FlowError]:
+        warnings = []
         if self.state.get_pc():  # PC empty -> no restrictions
             if isinstance(self.node.func, ast.Name):
-                Evaluator.warn(
-                    f"Calling function {self.node.func.id} with non-empty PC ({self.state.get_pc()}). Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage.",
-                    self.node.func.lineno,
+                warnings.append(
+                    ImplicitFlowError(
+                        self.node.func.lineno,
+                        self.state.get_pc(),
+                        FlowVar(self.node.func.id, None),
+                        "Non-tracked function call with non-empty PC",
+                    )
                 )
             else:
-                print(f"Call not implemented for type {self.node.func}")
-
-            return False
+                Evaluator.warn(
+                    f"Call not implemented for type {self.node.func}", self.node.lineno
+                )
 
         for arg in self.node.args:
             if isinstance(arg, ast.Constant):
                 continue
             elif isinstance(arg, ast.Name):
                 if isinstance(self.node.func, ast.Name):
-                    Evaluator.warn(
-                        f"Calling function {self.node.func.id} with {arg.id} as an argument, which has labels {self.state.get_labels(arg.id)}. Currently, FlowPy won't follow these calls, meaning that any side effects may result in information leakage.",
-                        self.node.func.lineno,
+                    warnings.append(
+                        ExplicitFlowError(
+                            self.node.func.lineno,
+                            FlowVar(arg.id, self.state.get_labels(arg.id)),
+                            FlowVar(self.node.func.id, None),
+                        ),
+                        "Non-tracked function call with non-empty argument",
                     )
             else:
-                print(f"Call not implemented for type {self.node.func}")
+                Evaluator.warn(
+                    f"Call not implemented for type {self.node.func}", self.node.lineno
+                )
 
-            return False
-
-        return True
+        return warnings
 
 
 class ModuleEvaluator(Evaluator):
@@ -286,16 +323,16 @@ class ModuleEvaluator(Evaluator):
     state: State
     function_states: Dict[str, State]
 
-    def __init__(self, node: ast.Module, state: State, function_states: Dict[str, State]):
+    def __init__(
+        self, node: ast.Module, state: State, function_states: Dict[str, State]
+    ):
         super().__init__(node, state, function_states)
         if MAIN_SCRIPT in self.function_states:
             self.state.combine(self.function_states[MAIN_SCRIPT])
 
     def evaluate(self) -> bool:
+        warnings = []
         for nd in self.node.body:
             evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
-
-            if not evaluator.evaluate():
-                return False
-
-        return True
+            warnings.extend(evaluator.evaluate())
+        return warnings

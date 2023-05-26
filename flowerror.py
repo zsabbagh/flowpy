@@ -1,32 +1,83 @@
+from flowpy import Format
+
+class FlowVar:
+    """
+    FlowVar is a wrapper class for a variable name and its labels.
+    """
+
+    def __init__(self, name, labels):
+        self.name = name
+        self.labels = labels
+
+    def __str__(self):
+        return f"{self.name} : {self.labels}"
+
+
 # Purpose: Defines the base class for all flow faults.
 class FlowError(Exception):
     """
-    Base class for defining all flow faults.
+    Base class for defining all flow error.
     Could be raised but also treated as a regular object.
     """
 
-    def __init__(self, explicit, linenr=-1, pc: set=None, labels_from: set=None, labels_to: set=None, context: str=None) -> None:
+    def __init__(
+        self,
+        linenr=None,
+        var_to=None,
+        info="",
+    ) -> None:
         """
-        Initialise a flow fault.
+        Initialise a flow error.
+        """
+        self.linenr: int = linenr
+        self.var_to: FlowVar = var_to
+        self.info: str = info
 
-        explicit: True if the fault is explicit, False if implicit
-        linenr: The line number of the fault
-        pc: The program counter when the fault occurred
-        labels_from: The labels that information flows from
-        labels_to: The labels that information flows to
-        """
-        self.message = "Explicit" if explicit else "Implicit"
-        self.linenr = linenr
+class ImplicitFlowError(FlowError):
+    """
+    ImplicitFlowError is a flow error that occurs when a variable is assigned
+    to when PC is not a subset of the variable's labels.
+    """
+
+    def __init__(
+        self, linenr=-1, pc: set = None, var_to: FlowVar = None, info: str = ""
+    ) -> None:
+        super().__init__(linenr, var_to, info)
         self.pc = pc
-        self.labels_from = labels_from
-        self.labels_to = labels_to
-        self.context = context
-    
+
     def __str__(self) -> str:
         message = [
-            f"{self.message} flow fault @{self.linenr}.",
-            f"\tPC:  \t{self.pc}",
-            f"\tFlow:\t{self.labels_from} -> {self.labels_to}",
-            f"----- Context -----\n{self.context}\n-------------------"
+            f"{Format.BOLD+Format.ORANGE}Implicit Flow Error{Format.END} {Format.YELLOW + Format.UNDERLINE}@ line {self.linenr}{Format.END}",
+            f"{Format.GREY}PC:{Format.END}     \t{self.pc}",
+            f"{Format.GREY}Variable:{Format.END} \t{self.var_to}",
         ]
-        return "\n".join(message)
+        if self.info:
+            message.append(f"Info: {self.info}")
+        return '\n\t'.join(message)
+
+
+class ExplicitFlowError(FlowError):
+    """
+    ExplicitFlowError is a flow error that occurs when a variable is assigned
+    to and the target variable's labels are not a subset of from variable's labels.
+    """
+
+    def __init__(
+        self,
+        linenr: int = None,
+        var_from: FlowVar = None,
+        var_to: FlowVar = None,
+        info: str = "",
+    ) -> None:
+        super().__init__(linenr, var_to, info)
+        self.var_from = var_from
+
+    def __str__(self) -> str:
+        message = [
+            f"{Format.BOLD+Format.ORANGE}Explicit Flow Error{Format.END} {Format.YELLOW + Format.UNDERLINE}@ line {self.linenr}{Format.END}",
+            f"{Format.GREY}Variable:{Format.END} \t{self.var_from}",
+            f"{Format.GREY}Target:{Format.END} \t{self.var_to}",
+        ]
+        if self.info:
+            message.append(f"Info: {self.info}")
+        return '\n\t'.join(message)
