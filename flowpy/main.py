@@ -12,6 +12,7 @@ from .arguments import args, Format, MAIN_SCRIPT, FLOWPY_PREFIX
 
 # TODO: Print to sink instead of stdout
 
+
 class FlowPy:
     """
     Wrapper class for the entire program.
@@ -19,6 +20,7 @@ class FlowPy:
 
     __init__: Initializes the program with sources as files or strings
     """
+
     class Source:
         """
         Wrapper class for the source code.
@@ -35,7 +37,7 @@ class FlowPy:
         def __str__(self) -> str:
             return self.source
 
-        def __init__(self, source: str, encoding: str = "utf-8", name='') -> None:
+        def __init__(self, source: str, encoding: str = "utf-8", name="") -> None:
             self.name = name
             self.source = source
             self.encoding = encoding
@@ -47,7 +49,9 @@ class FlowPy:
             Parses the source code and extracts the comments
             rules for each function.
             """
-            tokens = tokenize.tokenize(BytesIO(self.source.encode(self.encoding)).readline)
+            tokens = tokenize.tokenize(
+                BytesIO(self.source.encode(self.encoding)).readline
+            )
             # We don't really care about these
             to_skip = [tokenize.NL, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT]
 
@@ -82,12 +86,11 @@ class FlowPy:
 
             self.functions[MAIN_SCRIPT] = self.global_state
 
-
     def get_source(self) -> Source:
         """
         Returns the source code as a Source object
         """
-        return ''.join(map(str, self.sources))
+        return "".join(map(str, self.sources))
 
     def get_states(self) -> str:
         res = []
@@ -95,7 +98,7 @@ class FlowPy:
             res.append(f"\nSource {source.name}:")
             for func, state in source.functions.items():
                 res.append(f"Function {func}:\n{state}")
-        return '\n'.join(res)
+        return "\n".join(res)
 
     def __init__(self, sources=None, sink=stdout, encoding="utf-8") -> None:
         """
@@ -109,7 +112,7 @@ class FlowPy:
         for source in sources:
             if source == stdin:
                 name = "stdin"
-            source_str = ''
+            source_str = ""
             if isinstance(source, IOBase):
                 source_str = source.read()
             elif isinstance(source, str):
@@ -124,11 +127,15 @@ class FlowPy:
                 exit(1)
             if not name:
                 name = os.urandom(8).hex()
-            self.sources.append(self.Source(source_str, encoding=self.encoding, name=name))
+            self.sources.append(
+                self.Source(source_str, encoding=self.encoding, name=name)
+            )
         if args.verbose:
-            print(f"\n{Format.BOLD+Format.GREEN}----- {Format.UNDERLINE}Source code:{Format.END}{Format.BOLD+Format.GREEN} -----{Format.END}\n{self.get_source()}\n{Format.GREEN}------------------------{Format.END}")
+            print(
+                f"\n{Format.BOLD+Format.GREEN}----- {Format.UNDERLINE}Source code:{Format.END}{Format.BOLD+Format.GREEN} -----{Format.END}\n{self.get_source()}\n{Format.GREEN}------------------------{Format.END}"
+            )
         # Why have this when we have functions for each source in self.sources
-        #self.functions = {}
+        # self.functions = {}
         if not hasattr(sink, "write"):
             print("Error: Sink must have a write method", file=stderr)
             exit(1)
@@ -148,7 +155,9 @@ class FlowPy:
             warnings = state.get_warnings()
             if len(warnings) > 0:
                 print(f"\n\033[91;1;4mFlowError(s) detected!{Format.END}")
-                print(f"{len(warnings)} warnings from source '{Format.UNDERLINE+Format.RED}{source.name}{Format.END}':")
+                print(
+                    f"{len(warnings)} warnings from source '{Format.UNDERLINE+Format.RED}{source.name}{Format.END}':"
+                )
                 for warning in warnings:
                     print()
                     print(warning)
@@ -168,7 +177,7 @@ def main():
         args.output = stdout
     flowpy = FlowPy(args.file, sink=args.output, encoding=args.encoding)
     flowpy.run()
-    #print(flowpy.get_states())
+    # print(flowpy.get_states())
 
 
 if __name__ == "__main__":

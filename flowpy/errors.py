@@ -2,6 +2,7 @@ import ast
 from .arguments import Format
 from .state import State
 
+
 class FlowVar:
     """
     FlowVar is a wrapper class for a variable name and its labels.
@@ -29,8 +30,8 @@ class FlowError(Exception):
 
     def __init__(
         self,
-        node: ast.AST=None,
-        state: State=None,
+        node: ast.AST = None,
+        state: State = None,
         var_to=None,
         info="",
     ) -> None:
@@ -48,6 +49,7 @@ class FlowError(Exception):
         Returns the code that caused the error.
         """
         return ast.unparse(self.node)
+
 
 class ImplicitFlowError(FlowError):
     """
@@ -69,7 +71,7 @@ class ImplicitFlowError(FlowError):
         ]
         if self.info:
             message[0] += f": {self.info}"
-        return '\n\t'.join(message)
+        return "\n\t".join(message)
 
 
 class ExplicitFlowError(FlowError):
@@ -99,4 +101,4 @@ class ExplicitFlowError(FlowError):
         ]
         if self.info:
             message[0] += f": {self.info}"
-        return '\n\t'.join(message)
+        return "\n\t".join(message)

@@ -1,5 +1,6 @@
 from flowpy.state import State
 
+
 def test_rule_parsing():
     """
     Test that the rule parsing works as expected.
@@ -102,6 +103,7 @@ def test_copy_state():
     state2.add_rules("a*: label3.")
     assert state.get_labels("a") == {"label", "label2"}
     assert state2.get_labels("a") == {"label", "label3"}
+
 
 def test_combine():
     """

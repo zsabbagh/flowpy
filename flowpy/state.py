@@ -5,6 +5,7 @@
 import re
 from copy import deepcopy
 
+
 class State:
     """
     This class handles states.
@@ -50,7 +51,7 @@ class State:
         self.__pc = set()
         self.__used = set()
         self.__warnings = []
-    
+
     def get_used(self, what=0) -> None:
         """
         Get all used labels, returns:
@@ -96,7 +97,7 @@ class State:
         state.__used = deepcopy(self.__used)
         state.__warnings = self.__warnings
         return state
-    
+
     def update_used(self, other) -> None:
         """
         Combines the used labels of two states
@@ -108,7 +109,7 @@ class State:
         Adds an error to the state
         """
         self.__warnings.append(err)
-    
+
     def get_warnings(self) -> list:
         """
         Returns the errors

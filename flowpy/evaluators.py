@@ -6,6 +6,7 @@ from .state import State
 from .arguments import args, MAIN_SCRIPT
 from .errors import FlowError, ImplicitFlowError, ExplicitFlowError, FlowVar
 
+
 # TODO: RETURN labels AND warnings
 class Evaluator(ABC):
     """
@@ -98,16 +99,21 @@ class UnimplementedEvaluator(Evaluator):
 
     def evaluate(self) -> List[FlowError]:
         # TODO: Make verbosable
-        Evaluator.warn(f"Evaluator NOT IMPLEMENTED for node {type(self.node)}.", self.node.lineno)
+        Evaluator.warn(
+            f"Evaluator NOT IMPLEMENTED for node {type(self.node)}.", self.node.lineno
+        )
         return self.state
+
 
 class NameEvaluator(Evaluator):
     """
     Evaluate a name.
     Crucial for error reporting.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
+
     def evaluate(self) -> State:
         """
         Evaluate a name.
@@ -138,12 +144,15 @@ class NameEvaluator(Evaluator):
             self.state.set_used(self.node.id)
         return self.state
 
+
 class TupleEvaluator(Evaluator):
     """
     Evaluate a tuple.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
+
     def evaluate(self) -> bool:
         for nd in self.node.elts:
             evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
@@ -151,14 +160,18 @@ class TupleEvaluator(Evaluator):
             self.state.update_used(state)
         return self.state
 
+
 class ConstantEvaluator(Evaluator):
     """
     Evaluate a constant.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
+
     def evaluate(self) -> bool:
         return self.state
+
 
 class FunctionDefEvaluator(Evaluator):
     """
@@ -183,29 +196,40 @@ class FunctionDefEvaluator(Evaluator):
             evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
             evaluator.evaluate()
         return self.state
-    
+
+
 class IfExpEvaluator(Evaluator):
     """
     If expression evaluator.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
+
     def evaluate(self) -> List[FlowError]:
-        state = Evaluator.from_AST(self.node.test, self.state.copy(), self.function_states).evaluate()
+        state = Evaluator.from_AST(
+            self.node.test, self.state.copy(), self.function_states
+        ).evaluate()
         used = state.get_used()
         self.state.set_used(used)
         self.state.update_pc(used)
-        Evaluator.from_AST(self.node.body, self.state.copy(), self.function_states).evaluate()
-        Evaluator.from_AST(self.node.orelse, self.state.copy(), self.function_states).evaluate()
+        Evaluator.from_AST(
+            self.node.body, self.state.copy(), self.function_states
+        ).evaluate()
+        Evaluator.from_AST(
+            self.node.orelse, self.state.copy(), self.function_states
+        ).evaluate()
         return self.state
+
 
 class CompareEvaluator(Evaluator):
     """
     Evaluate a comparison.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
-    
+
     def evaluate(self) -> Tuple[List[FlowError], Set[str]]:
         # Check the LHS plus all the other variables/elements in the statement
         items = list(
@@ -213,7 +237,9 @@ class CompareEvaluator(Evaluator):
         )  # Not the LHS (list as we may have a == b == c or smth)
         items.append(self.node.left)  # The LHS
         for item in items:
-            state = Evaluator.from_AST(item, self.state.copy(), self.function_states).evaluate()
+            state = Evaluator.from_AST(
+                item, self.state.copy(), self.function_states
+            ).evaluate()
             self.state.update_used(state)
         return self.state
 
@@ -234,7 +260,9 @@ class IfEvaluator(Evaluator):
         """
         Evaluate the contents of an if statement.
         """
-        state = Evaluator.from_AST(self.node.test, self.state.copy(), self.function_states).evaluate()
+        state = Evaluator.from_AST(
+            self.node.test, self.state.copy(), self.function_states
+        ).evaluate()
         self.state.update_pc(state.get_used())
         # `elif`s are represented as an `if` inside the `orelse` list.
         for nd in self.node.body + self.node.orelse:
@@ -260,13 +288,23 @@ class AssignEvaluator(Evaluator):
         if hasattr(self.node.value, "elts"):
             # iterable values
             for elt in self.node.value.elts:
-                states.append(Evaluator.from_AST(elt, self.state.copy(), self.function_states).evaluate())
+                states.append(
+                    Evaluator.from_AST(
+                        elt, self.state.copy(), self.function_states
+                    ).evaluate()
+                )
         else:
-            states.append(Evaluator.from_AST(self.node.value, self.state.copy(), self.function_states).evaluate())
+            states.append(
+                Evaluator.from_AST(
+                    self.node.value, self.state.copy(), self.function_states
+                ).evaluate()
+            )
         for tgt in self.node.targets:
             if hasattr(tgt, "elts"):
                 for i in range(len(states)):
-                    Evaluator.from_AST(tgt.elts[i], states[i].copy(), self.function_states).evaluate()
+                    Evaluator.from_AST(
+                        tgt.elts[i], states[i].copy(), self.function_states
+                    ).evaluate()
             else:
                 state = self.state.copy()
                 for s in states:
@@ -322,43 +360,53 @@ class CallEvaluator(Evaluator):
         super().__init__(node, state, function_states)
 
     def evaluate(self) -> List[FlowError]:
-        state = Evaluator.from_AST(self.node.func, self.state.copy(), self.function_states).evaluate()
+        state = Evaluator.from_AST(
+            self.node.func, self.state.copy(), self.function_states
+        ).evaluate()
         self.state.update_pc(state)
         if self.state.get_pc():
             self.state.error(
                 ImplicitFlowError(
                     self.node,
                     self.state,
-                    FlowVar(self.node.func.id, self.state.get_labels(self.node.func.id)),
-                    f"Untracked function call {self.node.func.id} with PC labels {self.state.get_pc()}"
+                    FlowVar(
+                        self.node.func.id, self.state.get_labels(self.node.func.id)
+                    ),
+                    f"Untracked function call {self.node.func.id} with PC labels {self.state.get_pc()}",
                 )
             )
         for arg in self.node.args:
             Evaluator.from_AST(arg, self.state.copy(), self.function_states).evaluate()
         return self.state
-    
+
+
 class WhileEvaluator(Evaluator):
     """
     Evaluate a while loop.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
-    
+
     def evaluate(self) -> bool:
-        state = Evaluator.from_AST(self.node.test, self.state.copy(), self.function_states).evaluate()
+        state = Evaluator.from_AST(
+            self.node.test, self.state.copy(), self.function_states
+        ).evaluate()
         self.state.update_pc(state.get_used())
         for nd in self.node.body:
             evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
             state = evaluator.evaluate()
         return self.state
 
+
 class PassEvaluator(Evaluator):
     """
     Evaluate a pass statement.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
-    
+
     def evaluate(self) -> List[FlowError]:
         return self.state
 
