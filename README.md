@@ -1,4 +1,5 @@
 # FlowPy
+![FlowPy](flowpy-colour.png)
 A static information flow control (IFC) checker - in Python, for Python.
 
 ## Installation
