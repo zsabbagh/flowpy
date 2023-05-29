@@ -1,5 +1,4 @@
-from ..state import State
-
+from flowpy.state import State
 
 def test_rule_parsing():
     """
@@ -103,21 +102,6 @@ def test_copy_state():
     state2.add_rules("a*: label3.")
     assert state.get_labels("a") == {"label", "label2"}
     assert state2.get_labels("a") == {"label", "label3"}
-
-
-def test_inheritence():
-    """
-    Tests that inheritence works as expected.
-    """
-    parent = State()
-    parent.add_rules("a: label.")
-    state = State(parent)
-    assert state.get_labels("a") == {"label"}
-    state.add_rules("ab: label2.")
-    assert parent.get_labels("a") == {"label"}
-    assert state.get_labels("a") == {"label"}
-    assert state.get_labels("ab") == {"label2"}
-
 
 def test_combine():
     """

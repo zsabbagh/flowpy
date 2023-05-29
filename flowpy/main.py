@@ -3,51 +3,13 @@ import ast
 import tokenize
 import os
 from sys import stderr, stdin, stdout
-from io import IOBase, StringIO, BytesIO
+from io import IOBase, BytesIO
 from pathlib import Path
 from typing import Dict
-from state import State
-from argparse import ArgumentParser
-from evaluators import *
+from .state import State
+from .evaluators import Evaluator
+from .arguments import args, Format, MAIN_SCRIPT, FLOWPY_PREFIX
 
-
-parser = ArgumentParser(prog="flowpy", description="""
-          ___                  ___         ___         ___
-     /\__\                /\  \       /\  \       /\  \
-    /:/ _/_              /::\  \     _\:\  \     /::\  \  ___
-   /:/ /\__\            /:/\:\  \   /\ \:\  \   /:/\:\__\/|  |
-  /:/ /:/  ___     ___ /:/  \:\  \ _\:\ \:\  \ /:/ /:/  |:|  |
- /:/_/:/  /\  \   /\__/:/__/ \:\__/\ \:\ \:\__/:/_/:/  /|:|  |
- \:\/:/  /\:\  \ /:/  \:\  \ /:/  \:\ \:\/:/  \:\/:/  __|:|__|
-  \::/__/  \:\  /:/  / \:\  /:/  / \:\ \::/  / \::/__/::::\  \
-   \:\  \   \:\/:/  /   \:\/:/  /   \:\/:/  /   \:\  ~~~~\:\  \
-    \:\__\   \::/  /     \::/  /     \::/  /     \:\__\   \:\__\
-     \/__/    \/__/       \/__/       \/__/       \/__/    \/__/
-""")
-parser.add_argument("file", nargs="*", help="File(s) to check, defaults to stdin", default='stdin')
-parser.add_argument("-v", "--verbose", action="store_true", help="Verbose messages")
-parser.add_argument("-e", "--encoding", help="Encoding to use", default='utf-8')
-parser.add_argument("-o", "--output", help="Output file", default='stdout')
-parser.add_argument("-c", "--colour", action="store_true", help="Colour output")
-FLOWPY_ARGS = parser.parse_args()
-
-class Format:
-    """
-    Class for formatting output
-    """
-    UNDERLINE = '\033[4m' if FLOWPY_ARGS.colour else ''
-    CYAN = '\033[96m' if FLOWPY_ARGS.colour else ''
-    BLUE = '\033[94m' if FLOWPY_ARGS.colour else ''
-    GREEN = '\033[92m' if FLOWPY_ARGS.colour else ''
-    YELLOW = '\033[93m' if FLOWPY_ARGS.colour else ''
-    RED = '\033[91m' if FLOWPY_ARGS.colour else ''
-    GREY = '\033[90m' if FLOWPY_ARGS.colour else ''
-    BOLD = '\033[;1m' if FLOWPY_ARGS.colour else ''
-    END = '\033[0m' if FLOWPY_ARGS.colour else ''
-    ORANGE = '\033[38;5;208m' if FLOWPY_ARGS.colour else ''
-
-FLOWPY_PREFIX = "fp"
-MAIN_SCRIPT = '__global_script__'
 # TODO: Print to sink instead of stdout
 
 class FlowPy:
@@ -135,7 +97,7 @@ class FlowPy:
                 res.append(f"Function {func}:\n{state}")
         return '\n'.join(res)
 
-    def __init__(self, sources=stdin, sink=stdout, encoding="utf-8") -> None:
+    def __init__(self, sources=None, sink=stdout, encoding="utf-8") -> None:
         """
         source: Where to read the source code from
         sink: Where to output the results
@@ -163,8 +125,8 @@ class FlowPy:
             if not name:
                 name = os.urandom(8).hex()
             self.sources.append(self.Source(source_str, encoding=self.encoding, name=name))
-        if FLOWPY_ARGS.verbose:
-            print(f"\n----- Source code: -----\n{self.get_source()}\n-----")
+        if args.verbose:
+            print(f"\n{Format.BOLD+Format.GREEN}----- {Format.UNDERLINE}Source code:{Format.END}{Format.BOLD+Format.GREEN} -----{Format.END}\n{self.get_source()}\n{Format.GREEN}------------------------{Format.END}")
         # Why have this when we have functions for each source in self.sources
         #self.functions = {}
         if not hasattr(sink, "write"):
@@ -182,7 +144,8 @@ class FlowPy:
         for source in self.sources:
             prog = ast.parse(str(source))
             main_evaluator = Evaluator.from_AST(prog, State(), source.functions)
-            warnings = main_evaluator.evaluate()
+            state = main_evaluator.evaluate()
+            warnings = state.get_warnings()
             if len(warnings) > 0:
                 print(f"\n{Format.UNDERLINE+Format.RED}FlowError(s) detected!{Format.END}")
                 print(f"{len(warnings)} warnings from source '{Format.UNDERLINE+Format.RED}{source.name}{Format.END}':")
@@ -195,15 +158,15 @@ class FlowPy:
 
 def main():
     print("~~~ FlowPy v0.1 ~~~")
-    if FLOWPY_ARGS.verbose:
+    if args.verbose:
         print("\n <><< Verbose mode enabled >><> \n")
-    if FLOWPY_ARGS.file == "stdin":
-        FLOWPY_ARGS.file = stdin
-    if FLOWPY_ARGS.verbose:
-        print(f"Reading from {FLOWPY_ARGS.file}")
-    if FLOWPY_ARGS.output == "stdout":
-        FLOWPY_ARGS.output = stdout
-    flowpy = FlowPy(FLOWPY_ARGS.file, sink=FLOWPY_ARGS.output, encoding=FLOWPY_ARGS.encoding)
+    if args.file == "stdin":
+        args.file = stdin
+    if args.verbose:
+        print(f"Reading from {args.file}")
+    if args.output == "stdout":
+        args.output = stdout
+    flowpy = FlowPy(args.file, sink=args.output, encoding=args.encoding)
     flowpy.run()
     #print(flowpy.get_states())
 

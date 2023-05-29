@@ -1,6 +1,11 @@
 # FlowPy
 A static information flow control (IFC) checker - in Python, for Python.
 
+## Installation
+1. Clone this repository: `git clone git@github.com:zsabbagh/flowpy.git` or `git clone https://github.com/zsabbagh/flowpy.git`.
+2. Change directory to the project root: `cd flowpy`.
+3. Install the package: `pip install .` (or `pip install -e .` for developers).
+
 ## What
 [Information flow control](https://en.wikipedia.org/wiki/Information_flow_(information_theory)) is a way of monitoring and possibly restricting the flow of information within a system. It's different from many other security measures such as cryptography or access control, since it aims to show what information is being propagated to where even *after* it's been "lawfully" accessed. For example, controlling who can access a file can be a good security measure, but once it's been accessed this control can't really do much more. IFC, on the other hand, helps provide a proper overview regardless of what other procedures are in place, making it very interesting from a security standpoint.
 
@@ -17,7 +22,6 @@ Each time we find one or more comments asking `FlowPy` to check a function, we p
 ## States
 
 - Have FlowPy as recursive or DFS-like evaluation of scopes, whereof scopes are `def`'s, etc.
-- The script is treated as the entry point and all functions inherit the state from the 
+- The script is treated as the entry point and all functions inherit the state from the
 global `State` which belongs to the script.
 - Inheritence occurs when a variable does not have any specific labels
-

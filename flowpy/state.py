@@ -5,7 +5,6 @@
 import re
 from copy import deepcopy
 
-
 class State:
     """
     This class handles states.
@@ -49,21 +48,78 @@ class State:
         """
         self.__rules = {}
         self.__pc = set()
+        self.__used = set()
+        self.__warnings = []
+    
+    def get_used(self, what=0) -> None:
+        """
+        Get all used labels, returns:
+        0: labels
+        1: vars (dict of vars and their labels)
+        2: labels, vars
+        """
+        labels = set()
+        vars = dict()
+        for var in self.__used:
+            l = self.get_labels(var)
+            labels.update(l)
+            vars[var] = l
+        match what:
+            case 0:
+                return labels
+            case 1:
+                return vars
+            case 2:
+                return labels, vars
+            case _:
+                return None
 
-    def copy(self):
+    def set_used(self, var) -> None:
+        """
+        Set a variable as used
+        """
+        if type(var) == str:
+            self.__used.add(var)
+        else:
+            for v in var:
+                self.__used.add(v)
+
+    def copy(self, used=True):
         """
         Returns a copy of this state
         Uses deepcopy to avoid modifying the original state
+        In case of a copy, the used labels are not copied
         """
         state = State()
         state.__pc = deepcopy(self.__pc)
         state.__rules = deepcopy(self.__rules)
+        state.__used = deepcopy(self.__used)
+        state.__warnings = self.__warnings
         return state
+    
+    def update_used(self, other) -> None:
+        """
+        Combines the used labels of two states
+        """
+        self.__used.update(other.__used)
+
+    def error(self, err) -> None:
+        """
+        Adds an error to the state
+        """
+        self.__warnings.append(err)
+    
+    def get_warnings(self) -> list:
+        """
+        Returns the errors
+        """
+        return self.__warnings
 
     def __str__(self) -> str:
-        res = ["State: \n", f"\t<PC>: {self.__pc}"]
+        res = ["State: ", f"\t<PC>: {self.__pc}"]
         for regex, rule in self.__rules.items():
             res.append(f"\t{regex}: {rule.labels}")
+        res.append(f"\tUsed: {self.__used}")
         return "\n".join(res)
 
     def update_pc(self, labels) -> None:
@@ -71,6 +127,10 @@ class State:
         Update PC and adds all missing labels.
         Observe that labels are added, not overwritten.
         """
+        if type(labels) == State:
+            labels = labels.get_pc()
+        elif type(labels) == list:
+            labels = set(labels)
         self.__pc.update(labels)
 
     def set_pc(self, labels: set) -> None:
