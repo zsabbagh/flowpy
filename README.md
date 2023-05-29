@@ -20,9 +20,13 @@ We make heavy use of two main Python libraries: [tokenize](https://docs.python.o
 
 Each time we find one or more comments asking `FlowPy` to check a function, we parse all the rules present in these comments while looking for the function name. The parsed rules are placed into a `State` object, which keeps track of the current security context and each variable's security labels, and when we find the function name we store it together with the `State`. Once the entire file has been parsed, we create a `FunctionEvaluator` for each function and start the evaluation. This traverses the AST in order, verifying each statement or expression using a set of predetermined rules. If any breaches of these rules are found, `FlowPy` will output a warning for each of these cases.
 
-## States
+## Usage
 
-- Have FlowPy as recursive or DFS-like evaluation of scopes, whereof scopes are `def`'s, etc.
-- The script is treated as the entry point and all functions inherit the state from the
-global `State` which belongs to the script.
-- Inheritence occurs when a variable does not have any specific labels
+Rules are Python comments and follow the grammar `# fp var: label_1, label_2, etc. var*: label_3.`.
+This rule gives the variable `var` the labels `label_1`, `label_2` and `etc`.
+All labels that match the wildcard pattern `var*`, i.e. anything starting with `var` to also have `label_3`.
+Note that this implies that `var` has `label_3`.
+
+Completely empty label sets are always prioritised.
+These are denoted with the rule `var: ().` and cannot include any other label in rule.
+This is made available to be able to wipe rules in certain function definitions/scopes.
