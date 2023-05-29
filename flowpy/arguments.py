@@ -22,7 +22,7 @@ class Format:
     GREEN = '\033[92m' if args.colour else ''
     YELLOW = '\033[93m' if args.colour else ''
     RED = '\033[91m' if args.colour else ''
-    GREY = '\033[90m' if args.colour else ''
+    GREY = '\033[38;5;246m' if args.colour else ''
     BOLD = '\033[;1m' if args.colour else ''
     END = '\033[0m' if args.colour else ''
     ORANGE = '\033[38;5;208m' if args.colour else ''
