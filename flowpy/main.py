@@ -154,7 +154,7 @@ class FlowPy:
             state = main_evaluator.evaluate()
             warnings = state.get_warnings()
             if len(warnings) > 0:
-                print(f"\n\033[91;1;4mFlowError(s) detected!{Format.END}")
+                print(f"\n{Format.RED + Format.UNDERLINE + Format.BOLD}FlowError(s) detected!{Format.END}")
                 print(
                     f"{len(warnings)} warnings from source '{Format.UNDERLINE+Format.RED}{source.name}{Format.END}':"
                 )
