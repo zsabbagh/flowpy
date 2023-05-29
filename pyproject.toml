@@ -1,6 +1,6 @@
 [project]
 name = "FlowPy"
-version = "0.0.1"
+version = "0.1"
 authors = [
   { name="Daniel Williams", email="daniel_williams@live.com" },
   { name="Zakaria Sabbagh", email="zassabbagh@gmail.com" },
