@@ -6,6 +6,7 @@ parser.add_argument("-v", "--verbose", action="store_true", help="Verbose messag
 parser.add_argument("-e", "--encoding", help="Encoding to use", default='utf-8')
 parser.add_argument("-o", "--output", help="Output file", default='stdout')
 parser.add_argument("-c", "--colour", action="store_true", help="Colour output")
+parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
 args = parser.parse_args()
 
 MAIN_SCRIPT = '__global_script__'
