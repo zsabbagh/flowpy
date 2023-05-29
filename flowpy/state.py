@@ -70,6 +70,8 @@ class State:
         Update PC and adds all missing labels.
         Observe that labels are added, not overwritten.
         """
+        if type(labels) == list:
+            labels = set(labels)
         self.__pc.update(labels)
 
     def set_pc(self, labels: set) -> None:

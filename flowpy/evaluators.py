@@ -1,12 +1,12 @@
 import ast
 import sys
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Set
 from .state import State
 from .arguments import args, MAIN_SCRIPT
 from .errors import FlowError, ImplicitFlowError, ExplicitFlowError, FlowVar
 
-
+# TODO: RETURN labels AND warnings
 class Evaluator(ABC):
     """
     Abstract class for all evaluators to inherit from.
@@ -40,6 +40,10 @@ class Evaluator(ABC):
                 return FunctionDefEvaluator(node, state, function_states)
             case ast.Module:
                 return ModuleEvaluator(node, state, function_states)
+            case ast.While:
+                return WhileEvaluator(node, state, function_states)
+            case ast.Pass:
+                return PassEvaluator(node, state, function_states)
             case _:
                 return UnimplementedEvaluator(node, state, function_states)
 
@@ -313,6 +317,45 @@ class CallEvaluator(Evaluator):
                 )
 
         return warnings
+    
+class WhileEvaluator(Evaluator):
+    """
+    Evaluate a while loop.
+    """
+    def __init__(self, node, state, function_states):
+        super().__init__(node, state, function_states)
+    
+    def evaluate(self) -> bool:
+        warnings = []
+        test = self.node.test
+        print(f"test: {test}")
+        if isinstance(test, ast.Name):
+            self.state.update_pc(self.state.get_labels(test.id))
+        if isinstance(self.node.test, ast.Compare):  # If we have e.g. "if a == b"
+            # Check the LHS plus all the other variables/elements in the statement
+            items = (
+                self.node.test.comparators
+            )  # Not the LHS (list as we may have a == b == c or smth)
+            items.append(self.node.test.left)  # The LHS
+            for item in items:
+                if isinstance(item, ast.Name):  # If we have a variable
+                    # Get all labels of the variable and update state's PC with them
+                    # If the set is empty, well, then PC remains unchanged.
+                    self.state.update_pc(self.state.get_labels(item.id))
+        for nd in self.node.body:
+            evaluator = Evaluator.from_AST(nd, self.state.copy(), self.function_states)
+            warnings.extend(evaluator.evaluate())
+        return warnings
+
+class PassEvaluator(Evaluator):
+    """
+    Evaluate a pass statement.
+    """
+    def __init__(self, node, state, function_states):
+        super().__init__(node, state, function_states)
+    
+    def evaluate(self) -> List[FlowError]:
+        return []
 
 
 class ModuleEvaluator(Evaluator):
