@@ -143,3 +143,30 @@ e = (a, b, d)
     assert result[1].state.get_used(1)["d"] == {"med"}
     assert result[1].var_to.name == "e"
     assert result[1].var_to.labels == set()
+
+def test_implicit_flow_for_loop():
+    """
+    Test that implicit flows are detected
+    for for loops.
+    """
+    flowpy = FlowPy(
+        """
+# fp a: high.
+a = 1
+for i in range(0, a):
+    k = i
+for i in range(a, 0, -1):
+    k = i
+""")
+    result = flowpy.run()
+    assert len(result) == 2
+    assert type(result[0]) == ImplicitFlowError
+    assert result[0].state.get_pc() == {"high"}
+    assert result[0].var_to.name == "k"
+    assert result[0].var_to.labels == set()
+    assert result[0].line == 5
+    assert type(result[1]) == ImplicitFlowError
+    assert result[1].state.get_pc() == {"high"}
+    assert result[1].var_to.name == "k"
+    assert result[1].var_to.labels == set()
+    assert result[1].line == 7

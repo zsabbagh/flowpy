@@ -75,15 +75,17 @@ class State:
             case _:
                 return None
 
-    def set_used(self, var) -> None:
+    def set_used(self, other) -> None:
         """
         Set a variable as used
         """
-        if type(var) == str:
-            self.__used.add(var)
+        if type(other) == str:
+            self.__used.add(other)
+        elif type(other) == State:
+            self.__used.update(other.get_used())
         else:
-            for v in var:
-                self.__used.add(v)
+            for var in other:
+                self.__used.add(var)
 
     def copy(self, used=True):
         """

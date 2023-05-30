@@ -55,6 +55,8 @@ class Evaluator(ABC):
                 return TupleEvaluator(node, state, function_states)
             case ast.Constant:
                 return ConstantEvaluator(node, state, function_states)
+            case ast.For:
+                return ForEvaluator(node, state, function_states)
             case _:
                 return UnimplementedEvaluator(node, state, function_states)
 
@@ -376,9 +378,26 @@ class CallEvaluator(Evaluator):
                 )
             )
         for arg in self.node.args:
-            Evaluator.from_AST(arg, self.state.copy(), self.function_states).evaluate()
+            state = Evaluator.from_AST(arg, self.state.copy(), self.function_states).evaluate()
+            self.state.update_used(state)
         return self.state
 
+
+class ForEvaluator(Evaluator):
+    """
+    Evaluate a for loop.
+    """
+    def __init__(self, node, state, function_states):
+        super().__init__(node, state, function_states)
+    
+    def evaluate(self) -> bool:
+        state = Evaluator.from_AST(
+            self.node.iter, self.state.copy(), self.function_states
+        ).evaluate()
+        self.state.update_pc(state.get_used())
+        for nd in self.node.body:
+            Evaluator.from_AST(nd, self.state.copy(), self.function_states).evaluate()
+        return self.state
 
 class WhileEvaluator(Evaluator):
     """
