@@ -362,6 +362,7 @@ class CallEvaluator(Evaluator):
         super().__init__(node, state, function_states)
 
     def evaluate(self) -> List[FlowError]:
+        used = self.state.get_used()
         state = Evaluator.from_AST(
             self.node.func, self.state.copy(), self.function_states
         ).evaluate()
@@ -380,6 +381,17 @@ class CallEvaluator(Evaluator):
         for arg in self.node.args:
             state = Evaluator.from_AST(arg, self.state.copy(), self.function_states).evaluate()
             self.state.update_used(state)
+        if self.state.get_used() - used:
+            self.state.error(
+                ImplicitFlowError(
+                    self.node,
+                    self.state,
+                    FlowVar(
+                        self.node.func.id, self.state.get_labels(self.node.func.id)
+                    ),
+                    f"Function call with arguments that increase labels with {self.state.get_used() - used}",
+                )
+            )
         return self.state
 
 
