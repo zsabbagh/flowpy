@@ -375,7 +375,7 @@ class CallEvaluator(Evaluator):
                     FlowVar(
                         self.node.func.id, self.state.get_labels(self.node.func.id)
                     ),
-                    f"Untracked function call {self.node.func.id} with PC labels {self.state.get_pc()}",
+                    f"Untracked function '{self.node.func.id}' called while PC has labels {self.state.get_pc()}",
                 )
             )
         for arg in self.node.args:
@@ -383,13 +383,13 @@ class CallEvaluator(Evaluator):
             self.state.update_used(state)
         if self.state.get_used() - used:
             self.state.error(
-                ImplicitFlowError(
+                ExplicitFlowError(
                     self.node,
                     self.state,
                     FlowVar(
                         self.node.func.id, self.state.get_labels(self.node.func.id)
                     ),
-                    f"Function call with arguments that increase labels with {self.state.get_used() - used}",
+                    f"Untracked function '{self.node.func.id}' called with classified arguments {self.state.get_used() - used}",
                 )
             )
         return self.state
