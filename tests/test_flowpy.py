@@ -161,14 +161,16 @@ for i in range(a, 0, -1):
 """
     )
     result = flowpy.run()
-    assert len(result) == 2
-    assert type(result[0]) == ImplicitFlowError
-    assert result[0].state.get_pc() == {"high"}
-    assert result[0].var_to.name == "k"
-    assert result[0].var_to.labels == set()
-    assert result[0].line == 5
+    assert len(result) == 4
+    assert type(result[0]) == ExplicitFlowError
     assert type(result[1]) == ImplicitFlowError
     assert result[1].state.get_pc() == {"high"}
     assert result[1].var_to.name == "k"
     assert result[1].var_to.labels == set()
-    assert result[1].line == 7
+    assert result[1].line == 5
+    assert type(result[2]) == ExplicitFlowError
+    assert type(result[3]) == ImplicitFlowError
+    assert result[3].state.get_pc() == {"high"}
+    assert result[3].var_to.name == "k"
+    assert result[3].var_to.labels == set()
+    assert result[3].line == 7
