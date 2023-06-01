@@ -38,16 +38,17 @@ class FlowPy:
 
         def get_lines(self, line, diff=1) -> str:
             """
-            Returns the line of code from the source code
+            Returns the lines of code surrounding the given line
+            with a diff of diff.
             """
             lines = self.source.splitlines()
-            botdelta = line - diff
+            botdelta = line - diff - 1
             topdelta = line + diff - len(lines)
-            add_to_bot = 0 if botdelta >= 0 else -botdelta
-            add_to_top = 0 if topdelta <= 0 else topdelta
-            bottom = line - diff - add_to_bot if line-diff-add_to_bot > 0 else 0
-            top = line + diff - add_to_top if line+diff-add_to_top < len(lines) else len(lines)-1
-            return self.source.splitlines()[bottom:top+1], bottom, top
+            add_to_bot = 0 if topdelta < 0 else topdelta
+            add_to_top = -botdelta if botdelta <= 0 else 0
+            bottom = line - diff - 1 - add_to_bot if line-diff-1-add_to_bot > 0 else 0
+            top = line + diff + add_to_top if line+diff+add_to_top <= len(lines) else len(lines)
+            return lines[bottom:top], bottom, top
 
         def __str__(self) -> str:
             return self.source
