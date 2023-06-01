@@ -2,9 +2,10 @@ import ast
 import sys
 from abc import ABC, abstractmethod
 from typing import Dict, List, Set, Tuple
+
+from .arguments import MAIN_SCRIPT, args
+from .errors import ExplicitFlowError, FlowError, FlowVar, ImplicitFlowError
 from .state import State
-from .arguments import args, MAIN_SCRIPT
-from .errors import FlowError, ImplicitFlowError, ExplicitFlowError, FlowVar
 
 
 # TODO: RETURN labels AND warnings
@@ -379,7 +380,9 @@ class CallEvaluator(Evaluator):
                 )
             )
         for arg in self.node.args:
-            state = Evaluator.from_AST(arg, self.state.copy(), self.function_states).evaluate()
+            state = Evaluator.from_AST(
+                arg, self.state.copy(), self.function_states
+            ).evaluate()
             self.state.update_used(state)
         if self.state.get_used() - used:
             self.state.error(
@@ -399,9 +402,10 @@ class ForEvaluator(Evaluator):
     """
     Evaluate a for loop.
     """
+
     def __init__(self, node, state, function_states):
         super().__init__(node, state, function_states)
-    
+
     def evaluate(self) -> bool:
         state = Evaluator.from_AST(
             self.node.iter, self.state.copy(), self.function_states
@@ -410,6 +414,7 @@ class ForEvaluator(Evaluator):
         for nd in self.node.body:
             Evaluator.from_AST(nd, self.state.copy(), self.function_states).evaluate()
         return self.state
+
 
 class WhileEvaluator(Evaluator):
     """

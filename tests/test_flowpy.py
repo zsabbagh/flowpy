@@ -1,5 +1,5 @@
-from flowpy.main import FlowPy
 from flowpy.errors import *
+from flowpy.main import FlowPy
 
 
 def test_implicit_flow_function():
@@ -144,6 +144,7 @@ e = (a, b, d)
     assert result[1].var_to.name == "e"
     assert result[1].var_to.labels == set()
 
+
 def test_implicit_flow_for_loop():
     """
     Test that implicit flows are detected
@@ -157,7 +158,8 @@ for i in range(0, a):
     k = i
 for i in range(a, 0, -1):
     k = i
-""")
+"""
+    )
     result = flowpy.run()
     assert len(result) == 2
     assert type(result[0]) == ImplicitFlowError
