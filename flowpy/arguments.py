@@ -9,6 +9,7 @@ parser.add_argument("-e", "--encoding", help="Encoding to use", default="utf-8")
 parser.add_argument("-o", "--output", help="Output file", default="stdout")
 parser.add_argument("-c", "--colour", action="store_true", help="Colour output")
 parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
+parser.add_argument("--diff", type=int, help="Diff context", default=2)
 args = parser.parse_args()
 
 MAIN_SCRIPT = "__global_script__"

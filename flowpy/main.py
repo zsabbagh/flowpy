@@ -36,15 +36,29 @@ class FlowPy:
         global_state: State
         functions: Dict[str, State]
 
+        def get_lines(self, line, diff=1) -> str:
+            """
+            Returns the line of code from the source code
+            """
+            lines = self.source.splitlines()
+            botdelta = line - diff
+            topdelta = line + diff - len(lines)
+            add_to_bot = 0 if botdelta >= 0 else -botdelta
+            add_to_top = 0 if topdelta <= 0 else topdelta
+            bottom = line - diff - add_to_bot if line-diff-add_to_bot > 0 else 0
+            top = line + diff - add_to_top if line+diff-add_to_top < len(lines) else len(lines)-1
+            return self.source.splitlines()[bottom:top+1], bottom, top
+
         def __str__(self) -> str:
             return self.source
 
-        def __init__(self, source: str, encoding: str = "utf-8", name="") -> None:
+        def __init__(self, source: str, encoding: str = "utf-8", name="", is_file=False) -> None:
             self.name = name
             self.source = source
             self.encoding = encoding
             self.functions: Dict[str, State] = {}
             self.global_state = State()
+            self.is_file = is_file
 
         def parse(self) -> None:
             """
@@ -111,6 +125,7 @@ class FlowPy:
         sources = [sources] if type(sources) != list else sources
         self.sources = []
         name = ""
+        is_file = False
         for source in sources:
             if source == stdin:
                 name = "stdin"
@@ -120,6 +135,7 @@ class FlowPy:
             elif isinstance(source, str):
                 path = Path(source)
                 if path.exists():
+                    is_file = True
                     name = path.name
                     source_str = open(path, encoding=self.encoding).read()
                 else:
@@ -128,23 +144,23 @@ class FlowPy:
                 print("Error: Source must be a file or a string", file=stderr)
                 exit(1)
             if not name:
-                name = os.urandom(8).hex()
+                name = 'unnamed-' + os.urandom(8).hex()
             self.sources.append(
-                self.Source(source_str, encoding=self.encoding, name=name)
+                self.Source(source_str, encoding=self.encoding, name=name, is_file=is_file)
             )
 
             if args.verbose:
                 bat_available = False
                 try:
                     subprocess.call(["bat", "-V"], stdout=subprocess.DEVNULL)
-                    bat_available = True
+                    bat_available = is_file
                 except:
                     pass
 
                 print(
-                    f"\n{Format.BOLD+Format.GREEN}----- {Format.UNDERLINE}"
-                    + "Source code:"
-                    + f"{Format.END}{Format.BOLD+Format.GREEN} -----{Format.END}"
+                    f"\n{Format.GREEN}----- {Format.BOLD}"
+                    + f"Source: '{name}'"
+                    + f"{Format.END} {Format.GREEN} -----{Format.END}"
                     + "\n"
                 )
 
@@ -157,8 +173,9 @@ class FlowPy:
                     print(
                         f"{self.get_source()}"
                         + "\n"
-                        + f"{Format.GREEN}------------------------{Format.END}"
                     )
+                print(f"{Format.GREEN}----- end of source{Format.END} {Format.GREEN} -----{Format.END}")
+                print()
         # Why have this when we have functions for each source in self.sources
         # self.functions = {}
         if not hasattr(sink, "write"):
@@ -178,6 +195,7 @@ class FlowPy:
             main_evaluator = Evaluator.from_AST(prog, State(), source.functions)
             state = main_evaluator.evaluate()
             warnings = state.get_warnings()
+            print(f"{Format.CYAN}...analysing '{source.name}'...{Format.END}")
             if len(warnings) > 0:
                 print(
                     f"\n{Format.RED + Format.UNDERLINE + Format.BOLD}FlowError(s) detected!{Format.END}"
@@ -188,7 +206,30 @@ class FlowPy:
                 for warning in warnings:
                     print()
                     print(warning)
+                    # print lines of code
+                    if args.verbose:
+                        print()
+                        print(
+                            f"{Format.GREY + Format.BOLD}Code context:{Format.END}"
+                        )
+                        diff = args.diff
+                        colour = Format.GREY
+                        lines, bottom, top = source.get_lines(warning.line, diff=diff)
+                        max = len(str(top))
+                        if top-bottom == 0:
+                            continue
+                        for i, line in enumerate(lines):
+                            if bottom+i+1 == warning.line:
+                                colour = Format.RED+Format.BOLD
+                            else:
+                                colour = Format.GREY
+                            print(f"{Format.GREY}{bottom+i+1}{' '*(max-len(str(bottom+i+1)))}  {colour}{line}{Format.END}")
+                        print()
                     result.append(warning)
+            else:
+                print(
+                    f"{Format.GREEN + Format.BOLD}No FlowErrors detected!{Format.END}"
+                )
         return result
 
 
