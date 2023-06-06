@@ -30,3 +30,8 @@ Note that this implies that `var` has `label_3`.
 Completely empty label sets are always prioritised.
 These are denoted with the rule `var: ().` and cannot include any other label in rule.
 This is made available to be able to wipe rules in certain function definitions/scopes.
+
+To run the programme, simply do:
+
+- `flowpy <file-to-test>` (or `-h` for more info).
+- Preferrably, see the [demo programmes](./demo_inputs) for files to test FlowPy on.
