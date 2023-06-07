@@ -35,3 +35,6 @@ To run the programme, simply do:
 
 - `flowpy <file-to-test>` (or `-h` for more info).
 - Preferrably, see the [demo programmes](./demo_inputs) for files to test FlowPy on.
+
+## Testing
+To test `FlowPy`, install `pytest` and run it from the project root directory.
